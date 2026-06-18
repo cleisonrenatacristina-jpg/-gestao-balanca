@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Balanças</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--p:#1a56db;--pd:#1e429f;--danger:#e02424;--warn:#f59e0b;--ok:#057a55;--bg:#f3f4f6;--card:#fff;--bdr:#e5e7eb;--txt:#111827;--muted:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+header{background:var(--pd);color:#fff;padding:13px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:1.15rem;font-weight:700}header span{font-size:.78rem;opacity:.75}
+nav{background:var(--p);display:flex;gap:2px;padding:0 12px;overflow-x:auto}
+nav button{background:transparent;border:none;color:rgba(255,255,255,.8);padding:10px 15px;cursor:pointer;font-size:.83rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+nav button:hover{color:#fff;background:rgba(255,255,255,.1)}nav button.active{color:#fff;border-bottom-color:#fff}
+.cont{max-width:1300px;margin:0 auto;padding:18px 14px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h2{font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--pd);text-transform:uppercase;letter-spacing:.04em}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.g5{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.g5{grid-template-columns:1fr 1fr}}
+.stat{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:16px;text-align:center}
+.stat .v{font-size:1.8rem;font-weight:800;color:var(--p)}.stat .l{font-size:.74rem;color:var(--muted);margin-top:4px}
+.stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:#d97706}.stat.pur .v{color:#7c3aed}
+form{display:flex;flex-direction:column;gap:10px}
+label{font-size:.79rem;font-weight:600;color:var(--muted)}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:7px;font-size:.88rem;background:#f9fafb}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:#fff}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:580px){.r2,.r3{grid-template-columns:1fr}}
+.btn{padding:9px 18px;border-radius:7px;border:none;font-size:.83rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-p{background:var(--p);color:#fff}.btn-p:hover{background:var(--pd)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{opacity:.85}
+.btn-o{background:transparent;border:1px solid var(--p);color:var(--p)}.btn-o:hover{background:var(--p);color:#fff}
+.btn-w{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}.btn-w:hover{background:#fde68a}
+.btn-sm{padding:5px 10px;font-size:.74rem}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead tr{background:#f9fafb}
+th{padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--bdr)}
+td{padding:8px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+.b-ok{background:#def7ec;color:var(--ok)}.b-bad{background:#fde8e8;color:var(--danger)}
+.b-warn{background:#fef3c7;color:#92400e}.b-info{background:#e1effe;color:var(--pd)}
+.b-desc{background:#ede9fe;color:#5b21b6}.b-pend{background:#f3f4f6;color:#374151}
+.alert{padding:11px 14px;border-radius:8px;font-size:.84rem;margin-bottom:14px;display:flex;align-items:flex-start;gap:9px}
+.al-d{background:#fde8e8;border-left:4px solid var(--danger);color:#9b1c1c}
+.al-w{background:#fef3c7;border-left:4px solid var(--warn);color:#92400e}
+.frow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.frow .f{display:flex;flex-direction:column;gap:4px}
+.frow select,.frow input{width:auto;min-width:120px}
+.empty{text-align:center;padding:36px;color:var(--muted);font-size:.88rem}
+.ch{position:relative;height:270px}
+.actions{display:flex;gap:5px}
+.tq{font-size:.67rem;background:#fde8e8;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700;white-space:nowrap}
+.hl td{background:#fff5f5!important}
+.hl2 td{background:#fdf4ff!important}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:20px;width:100%;max-width:560px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow-y:auto}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:14px;color:var(--pd)}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+/* Sub-tabs */
+.stabs{display:flex;gap:2px;margin-bottom:16px;background:#e5e7eb;padding:4px;border-radius:9px;width:fit-content}
+.stab{background:transparent;border:none;padding:8px 16px;border-radius:7px;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s}
+.stab.active{background:#fff;color:var(--pd);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.stab-page{display:none}.stab-page.active{display:block}
+.os-s{font-size:.71rem;color:var(--muted);font-style:italic}
+.sect-head{font-size:.88rem;font-weight:700;padding:8px 12px;border-radius:7px;margin:14px 0 10px}
+.sh-blue{background:#e1effe;color:var(--pd)}.sh-green{background:#def7ec;color:var(--ok)}
+.sh-red{background:#fde8e8;color:var(--danger)}.sh-purple{background:#ede9fe;color:#5b21b6}
+.disc-chip{display:inline-flex;align-items:center;gap:6px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:20px;padding:4px 12px;font-size:.78rem;color:#5b21b6;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+  <div><h1>Gestão de Balanças</h1><span>LivUp — Controle de manutenção</span></div>
+</header>
+<nav>
+  <button class="active" onclick="goPage('dashboard',this)">📊 Dashboard</button>
+  <button onclick="goPage('mes',this)">📅 Lista do Mês</button>
+  <button onclick="goPage('ocorrencias',this)">📋 Ocorrências</button>
+  <button onclick="goPage('balancas',this)">⚖️ Balanças</button>
+  <button onclick="goPage('relatorio',this)">📁 Relatório</button>
+</nav>
+
+<!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+<div id="page-dashboard" class="page active cont">
+  <div id="alertas"></div>
+  <div class="g5" style="margin-bottom:16px">
+    <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
+    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (mês)</div></div>
+    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">Aguardando aprovação</div></div>
+    <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (mês)</div></div>
+    <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras por balança — mês atual</div><div class="ch"><canvas id="cQ"></canvas></div></div>
+    <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Custo acumulado por balança (top 15)</div><div class="ch"><canvas id="cC"></canvas></div></div>
+  </div>
+  <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras mensais — últimos 6 meses</div><div class="ch"><canvas id="cH"></canvas></div></div>
+  <div class="g2">
+    <div class="card"><h2>⚡ Reincidências — quebrou em menos de 7 dias após retorno</h2><div id="t-reinc"></div></div>
+    <div class="card"><h2>🗑 Balanças descartadas</h2><div id="t-descartadas-dash"></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LISTA DO MÊS ═══════════════════ -->
+<div id="page-mes" class="page cont">
+  <div class="card">
+    <h2>Movimentação do Mês</h2>
+    <div class="frow">
+      <div class="f"><label>Mês</label><input type="month" id="mes-f"></div>
+      <button class="btn btn-p btn-sm" onclick="renderMes()">Filtrar</button>
+    </div>
+  </div>
+  <div id="res-mes"></div>
+</div>
+
+<!-- ═══════════════════ OCORRÊNCIAS ═══════════════════ -->
+<div id="page-ocorrencias" class="page cont">
+  <div class="stabs">
+    <button class="stab active" onclick="goStab('alm',this)">📦 Almoxarifado</button>
+    <button class="stab" onclick="goStab('man',this)">🔧 Manutenção</button>
+    <button class="stab" onclick="goStab('res',this)">📊 Resumo</button>
+  </div>
+
+  <!-- SUB: ALMOXARIFADO -->
+  <div id="stab-alm" class="stab-page active">
+    <div class="g2">
+      <div class="card">
+        <h2>📦 Registro de Entrada — Almoxarifado</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Preencha quando receber uma balança quebrada da produção.</p>
+        <form id="form-alm">
+          <div><label>Balança (TAG) *</label><select id="a-bal" required><option value="">Selecione...</option></select></div>
+          <div class="r2">
+            <div><label>Data da Quebra *</label><input type="date" id="a-quebra" required></div>
+            <div><label>Turno</label>
+              <select id="a-turno">
+                <option value="">Selecione...</option>
+                <option value="Manhã">Manhã</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noite">Noite</option>
+                <option value="Madrugada">Madrugada</option>
+              </select>
+            </div>
+          </div>
+          <div><label>Setor onde estava a balança</label><input type="text" id="a-setor" placeholder="Ex: Açougue, Frente de caixa, Recebimento..."></div>
+          <div><label>Problema constatado</label><textarea id="a-problema" rows="3" placeholder="Descreva o problema identificado na balança..."></textarea></div>
+          <div id="aviso-reinc" class="alert al-d" style="display:none">⚡ <span id="aviso-txt"></span></div>
+          <button type="submit" class="btn btn-p">Registrar entrada</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Últimas entradas registradas</h2>
+        <div id="t-alm-rec"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB: MANUTENÇÃO -->
+  <div id="stab-man" class="stab-page">
+    <div class="g2">
+
+      <!-- FORMULÁRIO MANUTENÇÃO -->
+      <div class="card">
+        <h2>🔧 Registro da Manutenção</h2>
+
+        <!-- Campo de busca por TAG -->
+        <div style="margin-bottom:10px">
+          <label>Digite a TAG da balança</label>
+          <div style="position:relative">
+            <input type="text" id="mf-bal-txt" list="mf-bal-list"
+              placeholder="Ex: AS-BL-185"
+              style="width:100%;padding:10px 12px;font-size:.95rem;font-weight:600;letter-spacing:.03em;border:2px solid var(--bdr);border-radius:8px;background:#f9fafb"
+              oninput="onTagInput()" autocomplete="off">
+            <datalist id="mf-bal-list"></datalist>
+            <!-- TAG encontrada: mostra chip -->
+            <div id="tag-found-chip" style="display:none;margin-top:6px;font-size:.8rem;background:#e1effe;color:var(--pd);border-radius:6px;padding:5px 10px;font-weight:600"></div>
+          </div>
+          <!-- Campo oculto guarda o ID da balança selecionada -->
+          <input type="hidden" id="mf-bal">
+        </div>
+        <div id="man-oc-wrap" style="display:none;margin-bottom:6px">
+          <label>Selecione a ocorrência desta balança</label>
+          <select id="man-oc-sel" onchange="carregarOcManut()"
+            style="width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:7px;font-size:.88rem">
+            <option value="">— selecione —</option>
+          </select>
+        </div>
+        <!-- Botão de nova ocorrência -->
+        <div id="btn-nova-oc-wrap" style="display:none;margin-bottom:14px">
+          <button type="button" class="btn btn-p" style="width:100%;background:#7c3aed;font-size:.85rem"
+            onclick="selecionarNova()">
+            ➕ Criar nova ocorrência para esta TAG (sem romaneio)
+          </button>
+        </div>
+
+        <!-- Bloco: info almoxarifado (readonly) -->
+        <div id="man-info-alm" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:11px;margin-bottom:14px;font-size:.81rem">
+          <div style="font-weight:700;color:var(--pd);margin-bottom:6px">📦 Registrado pelo Almoxarifado</div>
+          <div class="r3" style="gap:8px">
+            <div><span style="color:var(--muted)">Data quebra</span><br><strong id="mi-quebra">—</strong></div>
+            <div><span style="color:var(--muted)">Turno</span><br><strong id="mi-turno">—</strong></div>
+            <div><span style="color:var(--muted)">Setor</span><br><strong id="mi-setor">—</strong></div>
+          </div>
+          <div style="margin-top:7px"><span style="color:var(--muted)">Problema constatado</span><br><strong id="mi-problema">—</strong></div>
+        </div>
+
+        <div id="man-vazio" style="color:var(--muted);font-size:.84rem;text-align:center;padding:28px 0">
+          Selecione uma TAG e depois a ocorrência para preencher.
+        </div>
+
+        <form id="form-man" style="display:none;flex-direction:column;gap:0">
+
+          <!-- ETAPA 1: SAÍDA -->
+          <div style="background:#eff6ff;border-left:4px solid var(--p);border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:.8rem;font-weight:700;color:var(--pd);margin-bottom:8px">📤 ETAPA 1 — Saída para a Terceirizada</div>
+            <div>
+              <label>Data de Saída p/ terceirizada</label>
+              <input type="date" id="m-saida">
+            </div>
+          </div>
+
+          <!-- ETAPA 2: ORÇAMENTO -->
+          <div style="background:#fefce8;border-left:4px solid #ca8a04;border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:8px">💰 ETAPA 2 — Orçamento da Terceirizada</div>
+            <div class="r2">
+              <div><label>Valor do Orçamento (R$)</label><input type="number" id="m-orcamento" placeholder="0,00" min="0" step="0.01"></div>
+              <div><label>Qtd balanças no orçamento</label><input type="number" id="m-qtd-orcamento" placeholder="0" min="0"></div>
+            </div>
+          </div>
+
+          <!-- ETAPA 3: APROVAÇÃO -->
+          <div style="background:#f0fdf4;border-left:4px solid var(--ok);border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:.8rem;font-weight:700;color:var(--ok);margin-bottom:8px">✅ ETAPA 3 — Aprovação</div>
+            <div class="r2">
+              <div><label>N° O.S.</label><input type="text" id="m-os" placeholder="Ex: 12333"></div>
+              <div><label>Status</label>
+                <select id="m-status" onchange="toggleDescForm()">
+                  <option value="AGUARDANDO APROVAÇÃO">Aguardando aprovação</option>
+                  <option value="APROVADO">Aprovado</option>
+                  <option value="REPROVADO">Reprovado</option>
+                  <option value="DESCARTADO">Descartado</option>
+                </select>
+              </div>
+            </div>
+            <div class="r3" style="margin-top:8px">
+              <div><label>Valor Aprovado (R$)</label><input type="number" id="m-custo" placeholder="0,00" min="0" step="0.01"></div>
+              <div><label>Quem aprovou</label>
+                <select id="m-aprovador">
+                  <option value="">Selecione...</option>
+                  <option value="Vinicios">Vinicios</option>
+                  <option value="Cleison">Cleison</option>
+                  <option value="Ezequias">Ezequias</option>
+                  <option value="Hudin">Hudin</option>
+                </select>
+              </div>
+              <div><label>Data de Aprovação</label><input type="date" id="m-aprov-data"></div>
+            </div>
+            <div id="bloco-desc-form" style="display:none;margin-top:8px">
+              <div class="r2">
+                <div><label>Quem autorizou o descarte</label>
+                  <select id="m-q-desc">
+                    <option value="">Selecione...</option>
+                    <option value="Vinicios">Vinicios</option>
+                    <option value="Cleison">Cleison</option>
+                    <option value="Ezequias">Ezequias</option>
+                    <option value="Hudin">Hudin</option>
+                  </select>
+                </div>
+                <div><label>Data do Descarte</label><input type="date" id="m-data-desc"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ETAPA 4: CHEGADA -->
+          <div style="background:#fdf4ff;border-left:4px solid #9333ea;border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:14px">
+            <div style="font-size:.8rem;font-weight:700;color:#7c3aed;margin-bottom:8px">📥 ETAPA 4 — Chegada / Retorno</div>
+            <div class="r2">
+              <div><label>Previsão de Chegada</label><input type="date" id="m-previsao"></div>
+              <div><label>Data de Chegada (balança voltou)</label><input type="date" id="m-retorno"></div>
+            </div>
+            <div class="r2" style="margin-top:8px">
+              <div><label>Quem acompanhou o teste</label><input type="text" id="m-acomp-teste" placeholder="Nome do responsável"></div>
+              <div><label>Quem validou</label><input type="text" id="m-validou" placeholder="Nome do responsável"></div>
+            </div>
+          </div>
+
+          <div><label>Observação</label><textarea id="m-obs" rows="2" placeholder="Opcional"></textarea></div>
+          <button type="submit" class="btn btn-p" style="margin-top:12px">Salvar dados da manutenção</button>
+        </form>
+      </div>
+
+      <!-- PAINEL DIREITO -->
+      <div class="card">
+        <h2>📊 Painel — Terceirizada</h2>
+        <div class="frow">
+          <div class="f"><label>Mês da saída</label><input type="month" id="mf-mes" oninput="renderManPend()"></div>
+          <div class="f"><label>Status</label>
+            <select id="mf-status" onchange="renderManPend()">
+              <option value="">Todos</option>
+              <option value="PENDENTE">Pendente (sem OS)</option>
+              <option value="AGUARDANDO APROVAÇÃO">Aguardando aprovação</option>
+              <option value="APROVADO">Aprovado</option>
+              <option value="REPROVADO">Reprovado</option>
+              <option value="DESCARTADO">Descartado</option>
+            </select>
+          </div>
+          <button class="btn btn-o btn-sm" onclick="limparMF()">Limpar</button>
+        </div>
+
+        <!-- Contadores -->
+        <div class="g3" style="margin-bottom:12px">
+          <div class="stat"><div class="v" id="mv-entradas">0</div><div class="l">📤 Foram p/ terceirizada</div></div>
+          <div class="stat grn"><div class="v" id="mv-voltaram">0</div><div class="l">📥 Voltaram</div></div>
+          <div class="stat red"><div class="v" id="mv-fora">0</div><div class="l">⏳ Ainda na terceirizada</div></div>
+        </div>
+
+        <!-- Chips TAGs ainda fora -->
+        <div id="bloco-fora" style="display:none;margin-bottom:12px">
+          <div style="font-size:.78rem;font-weight:700;color:var(--danger);margin-bottom:7px">⏳ TAGs ainda na terceirizada:</div>
+          <div id="chips-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <!-- Balanças que entraram (registradas pelo almoxarifado, aguardando manutenção) -->
+        <div id="bloco-aguardando" style="margin-bottom:12px">
+          <div style="font-size:.78rem;font-weight:700;color:var(--pd);margin-bottom:7px">🔔 Aguardando ação da manutenção (sem saída registrada):</div>
+          <div id="chips-aguardando" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <div id="t-man-pend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB: RESUMO -->
+  <div id="stab-res" class="stab-page">
+    <div class="g3" style="margin-bottom:16px">
+      <div class="stat grn"><div class="v" id="rs-aprov">0</div><div class="l">Aprovadas</div></div>
+      <div class="stat ora"><div class="v" id="rs-aguard">0</div><div class="l">Aguardando aprovação</div></div>
+      <div class="stat red"><div class="v" id="rs-reprov">0</div><div class="l">Reprovadas</div></div>
+    </div>
+    <div class="g2">
+      <div class="stat pur"><div class="v" id="rs-desc">0</div><div class="l">Descartadas</div></div>
+      <div class="stat"><div class="v" id="rs-ret">0</div><div class="l">Retornaram (com data entrega)</div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>🗑 Balanças Descartadas</h2><div id="t-descartadas"></div></div>
+    <div class="card"><h2>📋 Todas as ocorrências</h2>
+      <div class="frow">
+        <div class="f"><label>Mês</label><input type="month" id="rf-mes"></div>
+        <div class="f"><label>Status</label>
+          <select id="rf-status">
+            <option value="">Todos</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="AGUARDANDO APROVAÇÃO">Aguardando</option>
+            <option value="APROVADO">Aprovado</option>
+            <option value="REPROVADO">Reprovado</option>
+            <option value="DESCARTADO">Descartado</option>
+          </select>
+        </div>
+        <button class="btn btn-o btn-sm" onclick="document.getElementById('rf-mes').value='';document.getElementById('rf-status').value='';renderResumo()">Limpar</button>
+      </div>
+      <div id="t-todas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ BALANÇAS ═══════════════════ -->
+<div id="page-balancas" class="page cont">
+  <div class="g2">
+    <div class="card">
+      <h2>Cadastrar Balança</h2>
+      <form id="form-bal">
+        <div><label>TAG *</label><input type="text" id="b-tag" placeholder="Ex: AS-BL-185" required></div>
+        <div class="r2">
+          <div><label>N° de Série</label><input type="text" id="b-serie"></div>
+          <div><label>Modelo</label><input type="text" id="b-modelo"></div>
+        </div>
+        <div class="r2">
+          <div><label>Marca</label><input type="text" id="b-marca"></div>
+          <div><label>Cap./Divisão</label><input type="text" id="b-cap"></div>
+        </div>
+        <div><label>Setor / Local</label><input type="text" id="b-setor"></div>
+        <div><label>Valor da Balança (R$)</label><input type="number" id="b-valor" min="0" step="0.01"></div>
+        <button type="submit" class="btn btn-p">Cadastrar</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Balanças Cadastradas</h2>
+      <div class="frow"><div class="f"><label>Buscar</label><input type="text" id="fb-busca" placeholder="TAG, modelo, marca..." oninput="renderBalancas()"></div></div>
+      <div id="t-bal"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ RELATÓRIO ═══════════════════ -->
+<div id="page-relatorio" class="page cont">
+  <div class="card">
+    <h2>Relatório por Período</h2>
+    <div class="frow">
+      <div class="f"><label>De</label><input type="date" id="r-ini"></div>
+      <div class="f"><label>Até</label><input type="date" id="r-fim"></div>
+      <div class="f"><label>Balança</label><select id="r-bal"><option value="">Todas</option></select></div>
+      <button class="btn btn-p btn-sm" onclick="gerarRel()">Gerar</button>
+      <button class="btn btn-o btn-sm" onclick="exportCSV()">Exportar CSV</button>
+    </div>
+  </div>
+  <div id="res-rel"></div>
+</div>
+
+
+<!-- MODAL EDITAR BAL -->
+<div class="modal-ov" id="m-bal">
+  <div class="modal">
+    <h3>Editar Balança</h3>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><label>TAG</label><input type="text" id="eb-tag"></div>
+      <div class="r2"><div><label>Série</label><input type="text" id="eb-serie"></div><div><label>Modelo</label><input type="text" id="eb-modelo"></div></div>
+      <div class="r2"><div><label>Marca</label><input type="text" id="eb-marca"></div><div><label>Cap./Div.</label><input type="text" id="eb-cap"></div></div>
+      <div><label>Setor</label><input type="text" id="eb-setor"></div>
+      <div><label>Valor (R$)</label><input type="number" id="eb-valor" min="0" step="0.01"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="fecharM('m-bal')">Cancelar</button>
+      <button class="btn btn-p" onclick="salvarEBal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DADOS DA PLANILHA ────────────────────────────────────────────────────────
+// [TAG,SERIE,MODELO,MARCA,OS,QUEBRA,RETIRADA,ENTREGA,CAP,STATUS,APROV,CUSTO]
+const PLANILHA=[
+["AS-BL-185","140900","LD1050","LIDER","12333","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-228","151412","LD1051","LIDER","12332","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-034","12581053","9094 PLUS","TOLEDO","123335","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-175","140894","LD1050","LIDER","123315","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-141","138935","LD1050","LIDER","12330","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-144","138938","LD1050","LIDER","123314","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-201","142027","LD1050","LIDER","123325","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-215","138943","LD1050","LIDER","123301","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-150","138933","LD1050","LIDER","3243965","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-183","140888","LD1050","LIDER","123312","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-199","142025","LD1050","LIDER","123305","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-149","138941","B-140","LIDER","123332","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-211","142024","LD1050","LIDER","123303","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-222","151427","LD1050","LIDER","123321","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-004","3002533401","9094 PLUS","TOLEDO","123341","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","123334","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-225","151422","LD1050","LIDER","123302","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-236","151417","LD1050","LIDER","123313","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-173","140901","LD1050","LIDER","123322","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-102","13039241","TI200","TOLEDO","123353","2026-01-01","2026-01-23","2026-02-11","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-166","140895","LD1050","LIDER","123323","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-170","140897","LD1050","LIDER","123324","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-179","140880","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-229","151421","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-172","140898","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-194","142013","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-230","151419","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","12712","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-045","13026443","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","REPROVADO","VINICIOS",0],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-058","13026442","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-043","13026485","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-061","13026480","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-181","140890","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-220","151423","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-191","142007","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-177","140904","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-187","140893","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-184","140896","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-238","151410","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",511],
+["AS-BL-195","138934","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","REPROVADO","VINICIOS",0],
+["AS-BL-208","142008","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-192","142010","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-148","138942","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-180","140899","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-112","13010690","9094 PLUS","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-247","14069993","2098","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","32kg/5g","APROVADO","VINICIOS",430],
+["AS-BL-250","14133167","2098","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-209","142011","LD1050","LIDER","3244123","2026-02-01","2026-02-12","2026-03-05","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-034","12581053","9094 PLUS","TOLEDO","127354","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","127351","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-003","3002533601","9094 PLUS","TOLEDO","127352","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-089","13026445","9094 PLUS","TOLEDO","127353","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-185","140900","LD1050","LIDER","127355","2026-03-01","2026-03-05","2026-03-19","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-190","142023","LD1050","LIDER","12736","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-142","138932","LD1050","LIDER","127361","2026-03-01","2026-03-05","2026-03-19","3KG/0,5gr","APROVADO","VINICIOS",538],
+["AS-BL-207","142005","LD1050","LIDER","127364","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-205","142028","LD1050","LIDER","127362","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-204","142006","LD1050","LIDER","127363","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-188","140891","LD1050","LIDER","12736","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-170","140897","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-210","142020","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-143","138940","LD1050","LIDER","127372","2026-03-01","2026-03-05","2026-03-19","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-189","142022","LD1050","LIDER","127373","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-201","142027","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-212","142029","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-231","151414","LD1050","LIDER","12738","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",495],
+["AS-BL-242","14090493","TI200","TOLEDO","127381","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",528],
+["AS-BL-100","13039239","TI200","TOLEDO","123351","2026-01-15","2026-01-23","2026-03-19","60KG/10G","APROVADO","VINICIOS",528],
+["AS-BL-092","12738428","TI200","TOLEDO","123352","2026-01-15","2026-01-23","2026-03-19","60kg/20g","APROVADO","VINICIOS",390],
+["AS-BL-099","13039242","TI200","TOLEDO","12335","2026-01-15","2026-01-23","2026-03-19","60KG/10G","APROVADO","VINICIOS",495],
+["AS-BL-175","140894","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-04-01","6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-198","142012","LD1050","LIDER","124481","2026-03-19","2026-03-19","2026-03-31","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-146","138937","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",511],
+["AS-BL-238","151410","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-232","151424","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-180","140899","LD1050","LIDER","124485","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","12449","2026-03-19","2026-03-19","2026-03-31","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-134","13026450","9094 PLUS","TOLEDO","12449","2026-03-19","2026-03-19",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-061","13026480","9094 PLUS","TOLEDO","12449","2026-03-19","2026-03-19",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-058","13026442","9094 PLUS","TOLEDO","12449","2026-03-19","2026-03-19",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-222","151427","LD1050","LIDER","124494","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-211","142024","LD1050","LIDER","124495","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-244","14090494","TI200","TOLEDO","12450","2026-03-19","2026-03-19",null,"32kg/5g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-250","14133167","TI200","TOLEDO","124502","2026-03-15","2026-03-20","2026-03-31","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-147","138936","LD1050","LIDER","123311","2026-01-10","2026-01-23","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-176","140882","LD1050","LIDER","3243964","2026-01-10","2026-01-23","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",430],
+["AS-BL-202","102026","LD1050","LIDER","123293","2026-01-10","2026-01-23","2026-03-31","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-165","140903","LD1050","LIDER","12450","2026-03-19","2026-03-20","2026-03-31","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-167","140885","LD1050","LIDER","12331","2026-01-10","2026-01-23","2026-03-31","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-145","138934","LD1050","LIDER","127101","2026-02-01","2026-02-13","2026-04-01","3KG/0,5gr","APROVADO","VINICIOS",511],
+["AS-BL-091","12738429","TI200","TOLEDO","123354","2026-01-10","2026-01-23","2026-04-01","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-003","3002533601","9094 PLUS","TOLEDO","126562","2026-03-30","2026-04-02","2026-04-15","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-054","13026440","9094 PLUS","TOLEDO","123333","2026-01-10","2026-01-23","2026-04-15","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-200","142015","LD1050","LIDER","126541","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-175","140894","LD1050","LIDER","12448","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-177","140904","LD1050","LIDER","128574","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-207","142005","LD1050","LIDER","126552","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-196","142019","LD1050","LIDER","128584","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",528],
+["AS-BL-168","140884","LD1050","LIDER","123304","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-171","140886","LD1050","LIDER","12329","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-193","142009","LD1050","LIDER","128573","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-206","142021","LD1050","LIDER","126553","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-212","142029","LD1050","LIDER","128583","2026-04-10","2026-04-22","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-183","140888","LD1050","LIDER","128575","2026-04-10","2026-04-22","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-143","138940","LD1050","LIDER","128586","2026-04-10","2026-04-22","2026-04-30","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-181","140890","LD1050","LIDER","126543","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-187","140893","LD1050","LIDER","126542","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-142","138932","LD1050","LIDER","126544","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-233","151429","LD1050","LIDER","126545","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-150","138933","LD1050","LIDER","126551","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-229","151421","LD1050","LIDER","126555","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-228","151412","LD1050","LIDER","126554","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-210","142020","LD1050","LIDER","12655","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-184","140896","LD1050","LIDER","12656","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-018","13026456","9094 PLUS","TOLEDO","123343","2026-01-15","2026-01-23","2026-04-16","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","127134","2026-02-01","2026-03-04","2026-03-04","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-191","142007","LD1050","LIDER","127112","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-061","13026480","9094 PLUS","TOLEDO","127135","2026-02-01","2026-02-13","2026-03-04","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-112","13010690","9094 PLUS","TOLEDO","12714","2026-02-01","2026-02-13","2026-03-04","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-184","140896","LD1050","LIDER","127115","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-177","140904","LD1050","LIDER","127113","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-230","151419","LD1050","LIDER","127124","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-192","142010","LD1050","LIDER","127103","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-209","142011","LD1050","LIDER","3244123","2026-02-15","2026-02-18","2026-03-04","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-247","14069993","TI200","TOLEDO","127141","2026-02-15","2026-02-13","2026-03-04","32kg/5g","APROVADO","VINICIOS",430],
+["AS-BL-220","151423","LD1050","LIDER","127111","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-187","140893","LD1050","LIDER","127114","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-229","151421","LD1050","LIDER","127121","2026-02-01","2026-02-13","2026-03-04","3KG/0,5gr","APROVADO","VINICIOS",538],
+["AS-BL-179","140880","LD1050","LIDER","12712","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-238","151410","LD1050","LIDER","12710","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",511],
+["AS-BL-058","13026442","9094 PLUS","TOLEDO","127132","2026-02-01","2026-02-13","2026-03-04","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","127125","2026-02-01","2026-02-13","2026-03-04","6kg/2g","APROVADO","VINICIOS",390],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","127131","2026-02-01","2026-02-13","2026-03-04","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-180","140899","LD1050","LIDER","127105","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-181","140890","LD1050","LIDER","12711","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-172","140898","LD1050","LIDER","127122","2026-02-01","2026-02-13","2026-03-04","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-148","138942","LD1050","LIDER","127104","2026-02-01","2026-02-13","2026-03-04","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-208","142008","LD1050","LIDER","127102","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-043","13026485","9094 PLUS","TOLEDO","127133","2026-02-01","2026-02-13","2026-03-04","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-194","142013","LD1050","LIDER","127123","2026-02-01","2026-02-13","2026-03-04","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","12768","2026-04-25","2026-04-30","2026-05-15","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-100","13039239","TI200","TOLEDO","12768","2026-04-25","2026-04-30",null,"60KG/10G","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-192","142010","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-06-10","6KG/1gr","APROVADO","VINICIOS",450],
+["AS-BL-149","138941","LD1050","LIDER","12767","2026-04-25","2026-04-30",null,"3kg/1g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-145","138934","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-05-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-190","142023","LD1050","LIDER","12767","2026-04-25","2026-04-30",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-150","138933","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-05-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-003","3002533601","9094 PLUS","TOLEDO","12767","2026-04-25","2026-04-30",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-140","138939","LD1050","LIDER","12766","2026-04-25","2026-04-30",null,"3kg/1g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-179","140880","LD1050","LIDER","12766","2026-04-25","2026-04-30",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-230","151419","LD1050","LIDER","12766","2026-04-25","2026-04-30","2026-05-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-182","140883","LD1050","LIDER","12766","2026-04-25","2026-04-30",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-144","138938","LD1050","LIDER","12766","2026-04-25","2026-04-30",null,"3kg/1g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-194","142013","LD1050","LIDER","12857","2026-04-10","2026-04-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-205","142028","LD1050","LIDER","12857","2026-04-10","2026-04-16","2026-05-15","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-167","140885","LD1050","LIDER","12857","2026-04-10","2026-04-16","2026-05-15","6kg/2g","APROVADO","VINICIOS",430],
+["AS-BL-193","142009","LD1050","LIDER","12857","2026-04-10","2026-04-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-177","140904","LD1050","LIDER","12857","2026-04-10","2026-04-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-183","140888","LD1050","LIDER","12857","2026-04-10","2026-04-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","12856","2026-04-10","2026-04-16","2026-05-15","30kg/10g","APROVADO","VINICIOS",0],
+["AS-BL-238","151410","LD1050","LIDER","128585","2026-04-15","2026-04-22","2026-05-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","128564","2026-04-15","2026-04-22","2026-05-15","6kg/2g","APROVADO","VINICIOS",0],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"30kg/10g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"30kg/10g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-112","13010690","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-103","12746061","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-043","1326485","9094 PLUS","TOLEDO","12856","2026-05-16","2026-05-16",null,"15KG/5gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-252","14129590","TI200","TOLEDO","12783","2026-05-16","2026-05-16",null,"32kg/5g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-228","151412","LD1050","LIDER","12783","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-251","14133066","TI200","TOLEDO","12783","2026-05-16","2026-05-16",null,"32kg/5g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-196","142019","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-183","140888","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-211","142024","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-239","151426","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-180","140899","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-231","151414","LD1050","LIDER","12782","2026-05-16","2026-05-16",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-246","14088034","TI200","TOLEDO","12858","2026-04-16","2026-04-16",null,"32kg/5g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-091","12738429","TI200","TOLEDO","12858","2026-04-16","2026-04-16",null,"60KG/10G","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-245","14088032","TI200","TOLEDO","12858","2026-04-16","2026-04-16",null,"32kg/5g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-212","142029","LD1050","LIDER","12858","2026-04-16","2026-04-16",null,"6kg/2g","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-184","140896","LD1050","LIDER","12656","2026-04-01","2026-04-01",null,"6KG/1gr","AGUARDANDO APROVAÇÃO","VINICIOS",0],
+["AS-BL-217","14001388","TI200","TOLEDO","12656","2026-04-01","2026-04-01",null,"60KG/10G","AGUARDANDO APROVAÇÃO","VINICIOS",0]
+];
+
+// ── ESTADO ────────────────────────────────────────────────────────────────────
+const DATA_VERSION = '5'; // incrementar aqui força reimportação da planilha
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function importarPlanilha(){
+  const tagMap={};
+  PLANILHA.forEach(r=>{
+    const t=r[0]; if(!t||t==='AS-BL-') return;
+    if(!tagMap[t]) tagMap[t]={id:uid(),tag:t,serie:r[1],modelo:r[2],marca:r[3],capDiv:r[8],setor:'',valor:0};
+  });
+  const bal=Object.values(tagMap);
+  const tid={};bal.forEach(b=>tid[b.tag]=b.id);
+  const oc=PLANILHA.filter(r=>r[0]&&r[0]!=='AS-BL-').map(r=>({
+    id:uid(),balancaId:tid[r[0]]||null,
+    numeroOS:r[4]||'',dataQuebra:r[5]||'',turno:'',setor:'',problemaConstatado:'',
+    dataRetirada:r[6]||null,dataAprovacao:null,previsaoChegada:null,
+    status:r[9]||'AGUARDANDO APROVAÇÃO',aprovadoPor:r[10]||'',
+    dataRetorno:r[7]||null,custo:r[11]||0,
+    descartado:false,quemDescartou:'',dataDescarte:null,capDiv:r[8]||'',obs:''
+  }));
+  localStorage.setItem('gb_bal',JSON.stringify(bal));
+  localStorage.setItem('gb_oc',JSON.stringify(oc));
+  localStorage.setItem('gb_ver',DATA_VERSION);
+  return {bal,oc};
+}
+
+function init() {
+  // Se versão diferente, reimporta planilha (preserva valores de balanças editados)
+  const ver = localStorage.getItem('gb_ver');
+  if(ver !== DATA_VERSION){
+    const balAntigo = JSON.parse(localStorage.getItem('gb_bal')||'[]');
+    const valorSalvo = {}; // preserva valores que o usuário já digitou
+    balAntigo.forEach(b=>{ if(b.valor) valorSalvo[b.tag]=b.valor; });
+    const result = importarPlanilha();
+    result.bal.forEach(b=>{ if(valorSalvo[b.tag]) b.valor=valorSalvo[b.tag]; });
+    localStorage.setItem('gb_bal',JSON.stringify(result.bal));
+    return result;
+  }
+  const bal = JSON.parse(localStorage.getItem('gb_bal')||'null');
+  const oc  = JSON.parse(localStorage.getItem('gb_oc')||'null');
+  if(!bal||!oc) return importarPlanilha();
+  return {bal,oc};
+}
+
+let {bal:balancas,oc:ocorrencias}=init();
+let editManId=null, editBalId=null;
+const charts={};
+
+function salvar(){localStorage.setItem('gb_bal',JSON.stringify(balancas));localStorage.setItem('gb_oc',JSON.stringify(ocorrencias));}
+function fmt(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fd(s){if(!s)return '—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function diffD(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function nomeBal(id){const b=balancas.find(x=>x.id===id);return b?b.tag:'?';}
+function infoBal(id){const b=balancas.find(x=>x.id===id);return b?`${b.modelo||''} ${b.marca||''}`.trim():'';}
+function mesAtual(){return new Date().toISOString().slice(0,7);}
+function nomeMes(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleString('pt-BR',{month:'short',year:'2-digit'});}
+
+function statusBadge(s){
+  if(!s||s==='PENDENTE') return `<span class="badge b-pend">Pendente</span>`;
+  if(s==='APROVADO') return `<span class="badge b-ok">Aprovado</span>`;
+  if(s==='REPROVADO') return `<span class="badge b-bad">Reprovado</span>`;
+  if(s==='DESCARTADO') return `<span class="badge b-desc">Descartado</span>`;
+  return `<span class="badge b-warn">Aguardando</span>`;
+}
+
+function getStatus(o){
+  if(o.status==='DESCARTADO') return 'DESCARTADO';
+  if(!o.numeroOS) return 'PENDENTE';
+  return o.status||'AGUARDANDO APROVAÇÃO';
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function goPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  renderAll();
+}
+function goStab(id,btn){
+  document.querySelectorAll('.stab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('stab-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  renderAll();
+}
+
+// ── REINCIDÊNCIAS ─────────────────────────────────────────────────────────────
+function detectReinc(balId,dataQ,ignId=null){
+  const hist=ocorrencias.filter(o=>o.balancaId===balId&&o.id!==ignId&&o.dataRetorno).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
+  for(const o of hist){if(o.dataRetorno<dataQ){const d=diffD(o.dataRetorno,dataQ);if(d<=7)return{oc:o,dias:d};}}
+  return null;
+}
+function isReinc(o){return!!detectReinc(o.balancaId,o.dataQuebra,o.id);}
+
+// ── FORMULÁRIO ALMOXARIFADO ───────────────────────────────────────────────────
+document.getElementById('a-bal').addEventListener('change',chkReinc);
+document.getElementById('a-quebra').addEventListener('change',chkReinc);
+function chkReinc(){
+  const bid=document.getElementById('a-bal').value;
+  const dq=document.getElementById('a-quebra').value;
+  const el=document.getElementById('aviso-reinc');
+  if(!bid||!dq){el.style.display='none';return;}
+  const r=detectReinc(bid,dq);
+  if(r){document.getElementById('aviso-txt').textContent=`Esta balança voltou do conserto em ${fd(r.oc.dataRetorno)} e quebrou novamente em ${r.dias} dia(s)!`;el.style.display='flex';}
+  else el.style.display='none';
+}
+document.getElementById('form-alm').addEventListener('submit',function(e){
+  e.preventDefault();
+  ocorrencias.push({
+    id:uid(),balancaId:document.getElementById('a-bal').value,
+    numeroOS:'',dataQuebra:document.getElementById('a-quebra').value,
+    turno:document.getElementById('a-turno').value,
+    setor:document.getElementById('a-setor').value.trim(),
+    problemaConstatado:document.getElementById('a-problema').value.trim(),
+    dataRetirada:null,dataAprovacao:null,status:'AGUARDANDO APROVAÇÃO',
+    aprovadoPor:'',dataRetorno:null,custo:0,descartado:false,quemDescartou:'',dataDescarte:null,capDiv:'',obs:''
+  });
+  salvar();this.reset();document.getElementById('aviso-reinc').style.display='none';
+  renderAll();alert('Entrada registrada pelo almoxarifado!');
+});
+
+// ── FORMULÁRIO BALANÇA ────────────────────────────────────────────────────────
+document.getElementById('form-bal').addEventListener('submit',function(e){
+  e.preventDefault();
+  const tag=document.getElementById('b-tag').value.trim().toUpperCase();
+  if(balancas.find(b=>b.tag===tag)){alert('TAG já cadastrada!');return;}
+  balancas.push({id:uid(),tag,serie:document.getElementById('b-serie').value.trim(),modelo:document.getElementById('b-modelo').value.trim(),marca:document.getElementById('b-marca').value.trim(),capDiv:document.getElementById('b-cap').value.trim(),setor:document.getElementById('b-setor').value.trim(),valor:parseFloat(document.getElementById('b-valor').value)||0});
+  salvar();this.reset();renderAll();alert('Balança cadastrada!');
+});
+
+// ── SELECTS ───────────────────────────────────────────────────────────────────
+function renderSelects(){
+  const s=[...balancas].sort((a,b)=>a.tag.localeCompare(b.tag));
+  const optsAll=s.map(b=>`<option value="${b.id}">${b.tag}${b.modelo?' — '+b.modelo:''}</option>`).join('');
+
+  // Almoxarifado (todas as balanças) e relatório
+  ['a-bal','r-bal'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const prev=el.value;
+    el.innerHTML=(id==='a-bal'?'<option value="">Selecione...</option>':'<option value="">Todas</option>')+optsAll;
+    if(prev)el.value=prev;
+  });
+
+  // Manutenção — popula datalist com todas as TAGs
+  const dlEl=document.getElementById('mf-bal-list');
+  if(dlEl){
+    // value = só a TAG (o que entra no campo ao selecionar)
+    // texto = TAG + modelo para facilitar a busca visual
+    dlEl.innerHTML=s.map(b=>`<option value="${b.tag}">${b.tag}${b.modelo?' — '+b.modelo:''}${b.marca?' '+b.marca:''}</option>`).join('');
+  }
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const mes=mesAtual();
+  const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
+  document.getElementById('s-bal').textContent=balancas.length;
+  document.getElementById('s-aprov').textContent=ocMes.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  document.getElementById('s-reprov').textContent=ocMes.filter(o=>o.status==='REPROVADO').length;
+  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  document.getElementById('s-desc').textContent=descs.length;
+
+  // alertas
+  const reincs=ocorrencias.filter(isReinc);
+  const alertEl=document.getElementById('alertas');
+  alertEl.innerHTML='';
+  if(reincs.length){alertEl.innerHTML+=`<div class="alert al-d">⚡ <strong>${reincs.length} reincidência(s)</strong> detectadas — balanças que quebraram em menos de 7 dias após retorno do conserto.</div>`;}
+  const pend=ocorrencias.filter(o=>getStatus(o)==='PENDENTE').length;
+  if(pend){alertEl.innerHTML+=`<div class="alert al-w">⏳ <strong>${pend} ocorrência(s) pendente(s)</strong> aguardam preenchimento pela Manutenção (sem N° O.S. ainda).</div>`;}
+
+  // gráficos
+  const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
+  ocMes.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
+  const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
+  mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
+
+  const cBal={};balancas.forEach(b=>cBal[b.id]={tag:b.tag,c:0});
+  ocorrencias.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
+  const dC=Object.values(cBal).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,15);
+  mkChart('cC','bar',dC.map(x=>x.tag),[{label:'Custo',data:dC.map(x=>x.c),backgroundColor:'#057a55',borderRadius:5}],true);
+
+  const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
+  mkChart('cH','line',m6.map(nomeMes),[{label:'Quebras',data:m6.map(m=>ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(m)).length),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.1)',fill:true,tension:.3,pointRadius:5}]);
+
+  // tabela reincidências
+  const el=document.getElementById('t-reinc');
+  if(!reincs.length){el.innerHTML='<p class="empty">Nenhuma reincidência.</p>';}
+  else el.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Retornou</th><th>Dias</th><th>OS</th></tr></thead><tbody>
+  ${reincs.sort((a,b)=>b.dataQuebra.localeCompare(a.dataQuebra)).slice(0,15).map(o=>{
+    const r=detectReinc(o.balancaId,o.dataQuebra,o.id);
+    return`<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${fd(o.dataQuebra)}</td><td>${fd(r.oc.dataRetorno)}</td><td><span class="badge b-bad">${r.dias}d</span></td><td class="os-s">${o.numeroOS||'—'}</td></tr>`;
+  }).join('')}</tbody></table>`;
+
+  // descartadas
+  const dd=document.getElementById('t-descartadas-dash');
+  if(!descs.length){dd.innerHTML='<p class="empty">Nenhuma balança descartada.</p>';}
+  else dd.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px">${descs.map(o=>`<div class="disc-chip">🗑 ${nomeBal(o.balancaId)}${o.quemDescartou?' · '+o.quemDescartou:''}</div>`).join('')}</div>`;
+}
+
+function mkChart(id,type,labels,datasets,isMoeda=false){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id)?.getContext('2d');if(!ctx)return;
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:isMoeda?{label:c=>' '+fmt(c.parsed.y)}:{}}},
+    scales:{y:{beginAtZero:true,ticks:isMoeda?{callback:v=>'R$ '+v.toLocaleString('pt-BR')}:{stepSize:1}}}}});
+}
+
+// ── LISTA DO MÊS ──────────────────────────────────────────────────────────────
+function renderMes(){
+  const mes=document.getElementById('mes-f').value||mesAtual();
+  document.getElementById('mes-f').value=mes;
+  const ents=ocorrencias.filter(o=>o.dataRetirada&&o.dataRetirada.startsWith(mes)).sort((a,b)=>a.dataRetirada.localeCompare(b.dataRetirada));
+  const sais=ocorrencias.filter(o=>o.dataRetorno&&o.dataRetorno.startsWith(mes)).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
+  const [y,m]=mes.split('-');
+  const nomeMesExt=new Date(y,m-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
+
+  const tbl=(lista,dcol,dfn)=>{
+    if(!lista.length)return'<p class="empty">Nenhuma neste mês.</p>';
+    return`<table><thead><tr><th>TAG</th><th>Modelo</th><th>N° O.S.</th><th>Quebra</th><th>${dcol}</th><th>Turno</th><th>Setor</th><th>Status</th><th>Custo</th></tr></thead>
+    <tbody>${lista.map(o=>{
+      const b=balancas.find(x=>x.id===o.balancaId);
+      return`<tr><td><strong>${b?b.tag:'?'}</strong></td><td>${b?(b.modelo+' '+b.marca).trim():'—'}</td>
+      <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataQuebra)}</td><td>${fd(dfn(o))}</td>
+      <td>${o.turno||'—'}</td><td>${o.setor||'—'}</td><td>${statusBadge(getStatus(o))}</td><td>${fmt(o.custo)}</td></tr>`;
+    }).join('')}</tbody></table>`;
+  };
+  document.getElementById('res-mes').innerHTML=`<div class="card">
+    <div class="sect-head sh-blue">📤 Entradas no conserto — ${ents.length} balança(s) retirada(s) em ${nomeMesExt}</div>
+    ${tbl(ents,'Data Retirada',o=>o.dataRetirada)}
+    <div class="sect-head sh-green" style="margin-top:18px">📥 Retornos do conserto — ${sais.length} balança(s) entregue(s) em ${nomeMesExt}</div>
+    ${tbl(sais,'Data Retorno',o=>o.dataRetorno)}
+  </div>`;
+}
+
+// ── ALMOXARIFADO TAB ─────────────────────────────────────────────────────────
+function renderAlm(){
+  const rec=[...ocorrencias].sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||'')).slice(0,20);
+  const el=document.getElementById('t-alm-rec');
+  if(!rec.length){el.innerHTML='<p class="empty">Nenhuma ocorrência registrada.</p>';return;}
+  el.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>Problema</th><th>Status</th></tr></thead>
+  <tbody>${rec.map(o=>`<tr>
+    <td><strong>${nomeBal(o.balancaId)}</strong></td>
+    <td>${fd(o.dataQuebra)}</td>
+    <td>${o.turno||'—'}</td>
+    <td>${o.setor||'—'}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.problemaConstatado||''}">${o.problemaConstatado||'—'}</td>
+    <td>${statusBadge(getStatus(o))}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ── MANUTENÇÃO TAB ───────────────────────────────────────────────────────────
+function renderMan(){
+  renderManOcSelect();
+  renderManPend();
+}
+
+// Chamado quando o usuário digita no campo de TAG
+function onTagInput(){
+  const txt  = document.getElementById('mf-bal-txt').value.trim();
+  const chip = document.getElementById('tag-found-chip');
+  // Tenta encontrar balança pelo início da string digitada (TAG exata ou parcial)
+  // Extrai só a parte da TAG caso venha "AS-BL-185 — LD1050" do autocomplete
+  const tagPart = txt.split('—')[0].trim().toUpperCase();
+  const bal  = balancas.find(b =>
+    tagPart === b.tag.toUpperCase() ||
+    (tagPart.length >= 3 && b.tag.toUpperCase().startsWith(tagPart))
+  );
+  if(bal){
+    document.getElementById('mf-bal').value = bal.id;
+    chip.style.display = 'block';
+    chip.textContent   = `⚖️ ${bal.tag}${bal.modelo?' — '+bal.modelo:''}${bal.marca?' '+bal.marca:''}`;
+    renderManOcSelect();
+  } else {
+    document.getElementById('mf-bal').value = '';
+    chip.style.display = 'none';
+    document.getElementById('man-oc-wrap').style.display   = 'none';
+    document.getElementById('btn-nova-oc-wrap').style.display = 'none';
+    document.getElementById('man-info-alm').style.display  = 'none';
+    document.getElementById('form-man').style.display      = 'none';
+    document.getElementById('man-vazio').style.display     = 'block';
+    editManId = null;
+  }
+}
+
+function renderManOcSelect(){
+  const fBal   = document.getElementById('mf-bal').value;
+  const sel    = document.getElementById('man-oc-sel');
+  const ocWrap = document.getElementById('man-oc-wrap');
+  const btnWrap= document.getElementById('btn-nova-oc-wrap');
+
+  if(!fBal){
+    if(ocWrap)  ocWrap.style.display  = 'none';
+    if(btnWrap) btnWrap.style.display = 'none';
+    document.getElementById('man-info-alm').style.display='none';
+    document.getElementById('form-man').style.display='none';
+    document.getElementById('man-vazio').style.display='block';
+    editManId = null;
+    return;
+  }
+
+  let lista = [...ocorrencias]
+    .filter(o=>o.balancaId===fBal)
+    .sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
+
+  if(lista.length === 0){
+    // Sem ocorrência — formulário em branco (sem romaneio)
+    if(ocWrap)  ocWrap.style.display  = 'none';
+    if(btnWrap) btnWrap.style.display = 'none';
+    selecionarNova();
+    return;
+  }
+
+  // Tem ocorrências: monta o select e já abre a mais recente automaticamente
+  let html = lista.map(o=>`<option value="${o.id}">${fd(o.dataQuebra)} — ${getStatus(o)}${o.numeroOS?' — OS:'+o.numeroOS:''}</option>`).join('');
+  sel.innerHTML = html;
+
+  if(lista.length > 1){
+    // Só mostra o select quando há mais de uma (para trocar se precisar)
+    sel.value = lista[0].id; // já seleciona a mais recente
+    if(ocWrap) ocWrap.style.display = 'block';
+  } else {
+    if(ocWrap) ocWrap.style.display = 'none';
+  }
+
+  if(btnWrap) btnWrap.style.display = 'block';
+
+  // Abre o formulário direto com a ocorrência mais recente
+  carregarOcManutById(lista[0].id);
+}
+
+function selecionarNova(){
+  const fBal = document.getElementById('mf-bal').value;
+  if(!fBal){ alert('Digite e selecione uma TAG primeiro.'); return; }
+  // Abre formulário em branco
+  document.getElementById('mi-quebra').textContent   = '—';
+  document.getElementById('mi-turno').textContent    = '—';
+  document.getElementById('mi-setor').textContent    = '—';
+  document.getElementById('mi-problema').textContent = 'Ocorrência sem registro do almoxarifado (sem romaneio)';
+  const infoBloco = document.getElementById('man-info-alm');
+  infoBloco.style.display    = 'block';
+  infoBloco.style.background = 'rgb(254,243,199)';
+  infoBloco.style.borderColor= '#fcd34d';
+  ['m-os','m-saida','m-orcamento','m-qtd-orcamento','m-custo','m-aprov-data',
+   'm-previsao','m-retorno','m-acomp-teste','m-validou','m-obs']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('m-status').value   = 'AGUARDANDO APROVAÇÃO';
+  document.getElementById('m-aprovador').value= '';
+  document.getElementById('m-q-desc').value   = '';
+  document.getElementById('m-data-desc').value= '';
+  toggleDescForm();
+  document.getElementById('form-man').style.display='flex';
+  document.getElementById('man-vazio').style.display='none';
+  editManId = null; // sinaliza criação nova no submit
+}
+
+function carregarOcManut(){
+  const id = document.getElementById('man-oc-sel').value;
+  if(!id){
+    document.getElementById('man-info-alm').style.display='none';
+    document.getElementById('form-man').style.display='none';
+    document.getElementById('man-vazio').style.display='block';
+    editManId=null; return;
+  }
+  carregarOcManutById(id);
+}
+
+function carregarOcManutById(id){
+  // Restaura cor padrão do bloco de info
+  document.getElementById('man-info-alm').style.background='';
+  document.getElementById('man-info-alm').style.borderColor='';
+
+  editManId = id;
+  const o = ocorrencias.find(x=>x.id===id);
+  document.getElementById('mi-quebra').textContent   = fd(o.dataQuebra);
+  document.getElementById('mi-turno').textContent    = o.turno||'—';
+  document.getElementById('mi-setor').textContent    = o.setor||'—';
+  document.getElementById('mi-problema').textContent = o.problemaConstatado||'—';
+  document.getElementById('man-info-alm').style.display='block';
+  // Etapa 1
+  document.getElementById('m-os').value         = o.numeroOS||'';
+  document.getElementById('m-saida').value      = o.dataRetirada||'';
+  // Etapa 2
+  document.getElementById('m-orcamento').value     = o.valorOrcamento||'';
+  document.getElementById('m-qtd-orcamento').value = o.qtdOrcamento||'';
+  // Etapa 3
+  document.getElementById('m-status').value     = o.status||'AGUARDANDO APROVAÇÃO';
+  document.getElementById('m-custo').value      = o.custo||'';
+  document.getElementById('m-aprovador').value  = o.aprovadoPor||'';
+  document.getElementById('m-aprov-data').value = o.dataAprovacao||'';
+  document.getElementById('m-q-desc').value     = o.quemDescartou||'';
+  document.getElementById('m-data-desc').value  = o.dataDescarte||'';
+  // Etapa 4
+  document.getElementById('m-previsao').value      = o.previsaoChegada||'';
+  document.getElementById('m-retorno').value        = o.dataRetorno||'';
+  document.getElementById('m-acomp-teste').value    = o.quemAcompanhouTeste||'';
+  document.getElementById('m-validou').value        = o.quemValidou||'';
+  document.getElementById('m-obs').value            = o.obs||'';
+  toggleDescForm();
+  document.getElementById('form-man').style.display='flex';
+  document.getElementById('man-vazio').style.display='none';
+}
+
+function toggleDescForm(){
+  const s = document.getElementById('m-status').value;
+  document.getElementById('bloco-desc-form').style.display = s==='DESCARTADO'?'block':'none';
+}
+
+document.getElementById('form-man').addEventListener('submit',function(e){
+  e.preventDefault();
+  const fBal = document.getElementById('mf-bal').value;
+
+  // Se não há ocorrência existente, cria uma nova
+  if(!editManId){
+    if(!fBal){ alert('Selecione uma TAG primeiro.'); return; }
+    const novaOc = {
+      id:uid(), balancaId:fBal,
+      numeroOS:'', dataQuebra:'', turno:'', setor:'',
+      problemaConstatado:'Registrado pela manutenção (sem romaneio)',
+      dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
+      status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'',
+      dataRetorno:null, custo:0,
+      descartado:false, quemDescartou:'', dataDescarte:null,
+      capDiv:'', obs:'', valorOrcamento:0, qtdOrcamento:0,
+      quemAcompanhouTeste:'', quemValidou:''
+    };
+    ocorrencias.push(novaOc);
+    editManId = novaOc.id;
+  }
+  const o = ocorrencias.find(x=>x.id===editManId);
+  // Etapa 1
+  o.numeroOS        = document.getElementById('m-os').value.trim();
+  o.dataRetirada    = document.getElementById('m-saida').value||null;
+  // Etapa 2
+  o.valorOrcamento  = parseFloat(document.getElementById('m-orcamento').value)||0;
+  o.qtdOrcamento    = parseInt(document.getElementById('m-qtd-orcamento').value)||0;
+  // Etapa 3
+  o.status          = document.getElementById('m-status').value;
+  o.custo           = parseFloat(document.getElementById('m-custo').value)||0;
+  o.aprovadoPor     = document.getElementById('m-aprovador').value;
+  o.dataAprovacao   = document.getElementById('m-aprov-data').value||null;
+  o.quemDescartou   = document.getElementById('m-q-desc').value;
+  o.dataDescarte    = document.getElementById('m-data-desc').value||null;
+  if(o.status==='DESCARTADO') o.descartado=true;
+  // Etapa 4
+  o.previsaoChegada     = document.getElementById('m-previsao').value||null;
+  o.dataRetorno         = document.getElementById('m-retorno').value||null;
+  o.quemAcompanhouTeste = document.getElementById('m-acomp-teste').value.trim();
+  o.quemValidou         = document.getElementById('m-validou').value.trim();
+  o.obs                 = document.getElementById('m-obs').value.trim();
+  salvar();
+  renderManOcSelect();
+  renderManPend();
+  alert('Dados da manutenção salvos!');
+});
+
+function renderManPend(){
+  const fMes  = document.getElementById('mf-mes').value;
+  const fSt   = document.getElementById('mf-status').value;
+  const hoje  = new Date().toISOString().slice(0,10);
+
+  // Balanças que saíram (têm dataRetirada)
+  let foramBase = ocorrencias.filter(o=>o.dataRetirada);
+  if(fMes) foramBase = foramBase.filter(o=>o.dataRetirada.startsWith(fMes));
+  const qtdForam    = foramBase.length;
+  const qtdVoltaram = foramBase.filter(o=>o.dataRetorno).length;
+  const aindaFora   = qtdForam - qtdVoltaram;
+  const listaFora   = foramBase.filter(o=>!o.dataRetorno);
+
+  document.getElementById('mv-entradas').textContent = qtdForam;
+  document.getElementById('mv-voltaram').textContent = qtdVoltaram;
+  document.getElementById('mv-fora').textContent     = aindaFora;
+
+  // Chips: TAGs ainda na terceirizada
+  const blocoFora = document.getElementById('bloco-fora');
+  if(listaFora.length){
+    blocoFora.style.display='block';
+    document.getElementById('chips-fora').innerHTML = listaFora.map(o=>{
+      const atrasada = o.previsaoChegada && o.previsaoChegada < hoje;
+      const cor = atrasada
+        ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b'
+        : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
+      const prev = o.previsaoChegada ? ` · prev: ${fd(o.previsaoChegada)}${atrasada?' ⚠️':''}` : '';
+      return `<span onclick="selecionarOcMan('${o.id}')" title="Clique para editar"
+        style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;${cor};border:1px solid;border-radius:20px;padding:4px 11px;font-size:.74rem;font-weight:600">
+        ⚖️ ${nomeBal(o.balancaId)}${prev}</span>`;
+    }).join('');
+  } else {
+    blocoFora.style.display='none';
+  }
+
+  // Chips: aguardando manutenção (sem saída ainda)
+  let aguardando = ocorrencias.filter(o=>!o.dataRetirada);
+  if(fMes) aguardando = aguardando.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
+  const blocoAg = document.getElementById('bloco-aguardando');
+  if(aguardando.length){
+    blocoAg.style.display='block';
+    document.getElementById('chips-aguardando').innerHTML = aguardando.map(o=>
+      `<span onclick="selecionarOcMan('${o.id}')" title="Clique para preencher"
+        style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:#e1effe;border:1px solid #93c5fd;color:var(--pd);border-radius:20px;padding:4px 11px;font-size:.74rem;font-weight:600">
+        ⚖️ ${nomeBal(o.balancaId)} · ${fd(o.dataQuebra)}</span>`
+    ).join('');
+  } else {
+    blocoAg.style.display='none';
+  }
+
+  // Tabela
+  let lista = [...ocorrencias].sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
+  if(fMes) lista = lista.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
+  if(fSt)  lista = lista.filter(o=>getStatus(o)===fSt);
+
+  const el = document.getElementById('t-man-pend');
+  if(!lista.length){el.innerHTML='<p class="empty">Nenhuma ocorrência.</p>';return;}
+
+  el.innerHTML=`<table><thead><tr>
+    <th>TAG</th><th>Quebra</th><th>Setor</th><th>OS</th>
+    <th>Saída</th><th>Orçamento</th><th>Aprovado por</th><th>Status</th>
+    <th>Prev. Chegada</th><th>Retorno</th><th>Validou</th><th></th>
+  </tr></thead>
+  <tbody>${lista.map(o=>{
+    const reinc    = isReinc(o);
+    const st       = getStatus(o);
+    const atrasada = o.previsaoChegada && !o.dataRetorno && o.previsaoChegada < hoje;
+    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}">
+      <td><strong>${nomeBal(o.balancaId)}</strong>${reinc?'<br><span class="tq">⚡&lt;7d</span>':''}</td>
+      <td>${fd(o.dataQuebra)}</td>
+      <td>${o.setor||'—'}</td>
+      <td class="os-s">${o.numeroOS||'—'}</td>
+      <td>${fd(o.dataRetirada)}</td>
+      <td>${o.valorOrcamento?fmt(o.valorOrcamento)+(o.qtdOrcamento?' ('+o.qtdOrcamento+'un)':''):'—'}</td>
+      <td>${o.aprovadoPor||'—'}</td>
+      <td>${statusBadge(st)}</td>
+      <td>${o.previsaoChegada?fd(o.previsaoChegada)+(atrasada?' <span class="badge b-bad">Atrasada</span>':''):'—'}</td>
+      <td>${fd(o.dataRetorno)}</td>
+      <td>${o.quemValidou||'—'}</td>
+      <td><button class="btn btn-w btn-sm" onclick="selecionarOcMan('${o.id}')">Selecionar</button></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function selecionarOcMan(id){
+  const o   = ocorrencias.find(x=>x.id===id);
+  const bal = balancas.find(b=>b.id===o.balancaId);
+  if(bal){
+    // Preenche texto e hidden input diretamente (sem setTimeout)
+    document.getElementById('mf-bal-txt').value = bal.tag;
+    document.getElementById('mf-bal').value     = bal.id;
+    // Atualiza chip
+    const chip = document.getElementById('tag-found-chip');
+    chip.style.display = 'block';
+    chip.textContent = `⚖️ ${bal.tag}${bal.modelo?' — '+bal.modelo:''}${bal.marca?' '+bal.marca:''}`;
+    // Popula select e abre formulário direto
+    renderManOcSelect();
+    // Se ficou com select visível (múltiplas ocorrências), força selecionar esta
+    if(document.getElementById('man-oc-wrap').style.display !== 'none'){
+      document.getElementById('man-oc-sel').value = id;
+      carregarOcManutById(id);
+    }
+  }
+  document.getElementById('stab-man').scrollIntoView({behavior:'smooth'});
+}
+
+function limparMF(){
+  ['mf-mes','mf-status'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  renderManPend();
+}
+
+// ── RESUMO TAB ────────────────────────────────────────────────────────────────
+function renderResumo(){
+  const fMes=document.getElementById('rf-mes').value;
+  const fSt=document.getElementById('rf-status').value;
+  let lista=[...ocorrencias];
+  if(fMes)lista=lista.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
+  if(fSt)lista=lista.filter(o=>getStatus(o)===fSt);
+
+  document.getElementById('rs-aprov').textContent=ocorrencias.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('rs-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO').length;
+  document.getElementById('rs-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
+  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  document.getElementById('rs-desc').textContent=descs.length;
+  document.getElementById('rs-ret').textContent=ocorrencias.filter(o=>o.dataRetorno).length;
+
+  const dd=document.getElementById('t-descartadas');
+  if(!descs.length)dd.innerHTML='<p class="empty">Nenhuma balança descartada.</p>';
+  else dd.innerHTML=`<table><thead><tr><th>TAG</th><th>Modelo</th><th>Data Quebra</th><th>Data Descarte</th><th>Quem autorizou</th><th>OS</th></tr></thead>
+  <tbody>${descs.map(o=>{const b=balancas.find(x=>x.id===o.balancaId);return`<tr class="hl2">
+    <td><strong>${b?b.tag:'?'}</strong></td><td>${b?(b.modelo+' '+b.marca).trim():'—'}</td>
+    <td>${fd(o.dataQuebra)}</td><td>${fd(o.dataDescarte)}</td>
+    <td>${o.quemDescartou||'—'}</td><td class="os-s">${o.numeroOS||'—'}</td>
+  </tr>`}).join('')}</tbody></table>`;
+
+  const tel=document.getElementById('t-todas');
+  if(!lista.length){tel.innerHTML='<p class="empty">Nenhuma ocorrência.</p>';return;}
+  tel.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>N° O.S.</th><th>Saída</th><th>Status</th><th>Retorno</th><th>Custo</th></tr></thead>
+  <tbody>${lista.sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||'')).map(o=>`<tr>
+    <td><strong>${nomeBal(o.balancaId)}</strong></td><td>${fd(o.dataQuebra)}</td>
+    <td>${o.turno||'—'}</td><td>${o.setor||'—'}</td>
+    <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td>
+    <td>${statusBadge(getStatus(o))}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+document.getElementById('rf-mes').addEventListener('change',renderResumo);
+document.getElementById('rf-status').addEventListener('change',renderResumo);
+
+// ── BALANÇAS ──────────────────────────────────────────────────────────────────
+function renderBalancas(){
+  const busca=(document.getElementById('fb-busca').value||'').toLowerCase();
+  let lista=[...balancas].sort((a,b)=>a.tag.localeCompare(b.tag));
+  if(busca)lista=lista.filter(b=>b.tag.toLowerCase().includes(busca)||(b.modelo||'').toLowerCase().includes(busca)||(b.marca||'').toLowerCase().includes(busca));
+  const el=document.getElementById('t-bal');
+  if(!lista.length){el.innerHTML='<p class="empty">Nenhuma balança.</p>';return;}
+  el.innerHTML=`<table><thead><tr><th>TAG</th><th>Série</th><th>Modelo</th><th>Marca</th><th>Cap.</th><th>Valor da Balança (R$)</th><th>Quebras</th><th>Custo consertos</th><th></th></tr></thead>
+  <tbody>${lista.map(b=>{
+    const ocs=ocorrencias.filter(o=>o.balancaId===b.id);
+    const ct=ocs.reduce((s,o)=>s+(o.custo||0),0);
+    return`<tr>
+    <td><strong>${b.tag}</strong>${b.setor?`<br><small style="color:var(--muted)">${b.setor}</small>`:''}</td>
+    <td style="color:var(--muted);font-size:.75rem">${b.serie||'—'}</td>
+    <td>${b.modelo||'—'}</td>
+    <td>${b.marca||'—'}</td>
+    <td>${b.capDiv||'—'}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="color:var(--muted);font-size:.75rem">R$</span>
+        <input type="number" min="0" step="0.01"
+          value="${b.valor||''}"
+          placeholder="0,00"
+          style="width:90px;padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.8rem;background:#f9fafb"
+          onchange="salvarValorBal('${b.id}', this.value)"
+          onfocus="this.style.borderColor='var(--p)';this.style.background='#fff'"
+          onblur="this.style.borderColor='var(--bdr)';this.style.background='#f9fafb'">
+      </div>
+    </td>
+    <td><span class="badge b-info">${ocs.length}</span></td>
+    <td>${fmt(ct)}</td>
+    <td class="actions">
+      <button class="btn btn-o btn-sm" onclick="abrirEBal('${b.id}')">✏️</button>
+      <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
+    </td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function salvarValorBal(id, val){
+  const b = balancas.find(x=>x.id===id);
+  if(b){ b.valor = parseFloat(val)||0; salvar(); }
+}
+
+// ── RELATÓRIO ─────────────────────────────────────────────────────────────────
+function gerarRel(){
+  const ini=document.getElementById('r-ini').value;
+  const fim=document.getElementById('r-fim').value;
+  const bid=document.getElementById('r-bal').value;
+  let lista=[...ocorrencias];
+  if(ini)lista=lista.filter(o=>o.dataQuebra>=ini);
+  if(fim)lista=lista.filter(o=>o.dataQuebra<=fim);
+  if(bid)lista=lista.filter(o=>o.balancaId===bid);
+  lista.sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
+  const total=lista.reduce((s,o)=>s+(o.custo||0),0);
+  const porBal={};
+  lista.forEach(o=>{if(!porBal[o.balancaId])porBal[o.balancaId]={tag:nomeBal(o.balancaId),n:0,c:0};porBal[o.balancaId].n++;porBal[o.balancaId].c+=(o.custo||0);});
+  const rank=Object.values(porBal).sort((a,b)=>b.n-a.n);
+  const el=document.getElementById('res-rel');
+  if(!lista.length){el.innerHTML='<div class="card"><p class="empty">Nenhuma ocorrência no período.</p></div>';return;}
+  const aprov=lista.filter(o=>o.status==='APROVADO').length;
+  const aguard=lista.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  const reprov=lista.filter(o=>o.status==='REPROVADO').length;
+  const desc=lista.filter(o=>getStatus(o)==='DESCARTADO').length;
+  const ret=lista.filter(o=>o.dataRetorno).length;
+  el.innerHTML=`
+    <div class="g5" style="margin-bottom:14px">
+      <div class="stat"><div class="v">${lista.length}</div><div class="l">Ocorrências</div></div>
+      <div class="stat grn"><div class="v">${aprov}</div><div class="l">Aprovadas</div></div>
+      <div class="stat ora"><div class="v">${aguard}</div><div class="l">Aguardando</div></div>
+      <div class="stat red"><div class="v">${reprov}</div><div class="l">Reprovadas</div></div>
+      <div class="stat pur"><div class="v">${desc}</div><div class="l">Descartadas</div></div>
+    </div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="stat"><div class="v">${ret}</div><div class="l">Retornaram</div></div>
+      <div class="stat grn"><div class="v">${fmt(total)}</div><div class="l">Custo total</div></div>
+    </div>
+    <div class="card"><h2>Ranking por balança</h2>
+      <table><thead><tr><th>#</th><th>TAG</th><th>Quebras</th><th>Custo total</th></tr></thead>
+      <tbody>${rank.map((x,i)=>`<tr><td>${i+1}</td><td>${x.tag}</td><td><span class="badge b-info">${x.n}</span></td><td>${fmt(x.c)}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <div class="card"><h2>Detalhe</h2>
+      <table><thead><tr><th>TAG</th><th>OS</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>Saída</th><th>Status</th><th>Retorno</th><th>Custo</th><th>Desc.</th></tr></thead>
+      <tbody>${lista.map(o=>`<tr class="${isReinc(o)?'hl':getStatus(o)==='DESCARTADO'?'hl2':''}">
+        <td>${nomeBal(o.balancaId)}${isReinc(o)?' <span class="tq">⚡</span>':''}</td>
+        <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataQuebra)}</td>
+        <td>${o.turno||'—'}</td><td>${o.setor||'—'}</td><td>${fd(o.dataRetirada)}</td>
+        <td>${statusBadge(getStatus(o))}</td><td>${fd(o.dataRetorno)}</td>
+        <td>${o.custo?fmt(o.custo):'—'}</td><td>${o.problemaConstatado||'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+}
+
+function exportCSV(){
+  const ini=document.getElementById('r-ini').value,fim=document.getElementById('r-fim').value,bid=document.getElementById('r-bal').value;
+  let lista=[...ocorrencias];
+  if(ini)lista=lista.filter(o=>o.dataQuebra>=ini);if(fim)lista=lista.filter(o=>o.dataQuebra<=fim);if(bid)lista=lista.filter(o=>o.balancaId===bid);
+  const linhas=[['TAG','N° O.S.','Data Quebra','Turno','Setor','Problema','Data Saída','Status','Aprovado por','Data Retorno','Custo','Descartado','Quem Descartou','Reincidência'],
+    ...lista.map(o=>[nomeBal(o.balancaId),o.numeroOS||'',fd(o.dataQuebra),o.turno||'',o.setor||'',o.problemaConstatado||'',fd(o.dataRetirada),getStatus(o),o.aprovadoPor||'',fd(o.dataRetorno),(o.custo||0).toFixed(2).replace('.',','),getStatus(o)==='DESCARTADO'?'Sim':'Não',o.quemDescartou||'',isReinc(o)?'Sim':'Não'])];
+  const csv=linhas.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));a.download='gestao-balancas.csv';a.click();
+}
+
+
+// ── MODAL BALANÇA ─────────────────────────────────────────────────────────────
+function abrirEBal(id){
+  editBalId=id;const b=balancas.find(x=>x.id===id);
+  document.getElementById('eb-tag').value=b.tag;document.getElementById('eb-serie').value=b.serie||'';
+  document.getElementById('eb-modelo').value=b.modelo||'';document.getElementById('eb-marca').value=b.marca||'';
+  document.getElementById('eb-cap').value=b.capDiv||'';document.getElementById('eb-setor').value=b.setor||'';
+  document.getElementById('eb-valor').value=b.valor||'';
+  document.getElementById('m-bal').classList.add('open');
+}
+function salvarEBal(){
+  const b=balancas.find(x=>x.id===editBalId);
+  b.tag=document.getElementById('eb-tag').value.trim().toUpperCase();b.serie=document.getElementById('eb-serie').value.trim();
+  b.modelo=document.getElementById('eb-modelo').value.trim();b.marca=document.getElementById('eb-marca').value.trim();
+  b.capDiv=document.getElementById('eb-cap').value.trim();b.setor=document.getElementById('eb-setor').value.trim();
+  b.valor=parseFloat(document.getElementById('eb-valor').value)||0;
+  salvar();fecharM('m-bal');renderAll();
+}
+function excluirBal(id){
+  const n=ocorrencias.filter(o=>o.balancaId===id).length;
+  if(n&&!confirm(`Esta balança tem ${n} ocorrência(s). Excluir?`))return;
+  balancas=balancas.filter(x=>x.id!==id);salvar();renderAll();
+}
+function fecharM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){
+  renderSelects();
+  const pg=document.querySelector('.page.active')?.id;
+  if(pg==='page-dashboard')renderDashboard();
+  if(pg==='page-mes')renderMes();
+  if(pg==='page-balancas')renderBalancas();
+  if(pg==='page-ocorrencias'){
+    const st=document.querySelector('.stab-page.active')?.id;
+    if(st==='stab-alm')renderAlm();
+    if(st==='stab-man')renderMan();
+    if(st==='stab-res')renderResumo();
+  }
+}
+document.getElementById('mes-f').value=mesAtual();
+renderAll();
+</script>
+</body>
+</html>
