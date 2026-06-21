@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADM — Gestão de Balanças</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root{--p:#1a56db;--pd:#1e429f;--danger:#e02424;--warn:#f59e0b;--ok:#057a55;--bg:#f3f4f6;--card:#fff;--bdr:#e5e7eb;--txt:#111827;--muted:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+header{background:var(--pd);color:#fff;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:1.1rem;font-weight:700}
+header span{font-size:.75rem;opacity:.75}
+.badge-adm{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;color:#fff}
+nav{background:var(--p);display:flex;gap:2px;padding:0 12px;overflow-x:auto}
+nav button{background:transparent;border:none;color:rgba(255,255,255,.8);padding:10px 15px;cursor:pointer;font-size:.83rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+nav button:hover{color:#fff;background:rgba(255,255,255,.1)}
+nav button.active{color:#fff;border-bottom-color:#fff}
+.cont{max-width:1300px;margin:0 auto;padding:18px 14px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h2{font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--pd);text-transform:uppercase;letter-spacing:.04em}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:900px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.g2,.g3,.g4,.g5{grid-template-columns:1fr}}
+.stat{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:16px;text-align:center}
+.stat .v{font-size:1.8rem;font-weight:800;color:var(--p)}.stat .l{font-size:.74rem;color:var(--muted);margin-top:4px}
+.stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:#d97706}.stat.pur .v{color:#7c3aed}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead tr{background:#f9fafb}
+th{padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--bdr)}
+td{padding:8px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+.b-ok{background:#def7ec;color:var(--ok)}.b-bad{background:#fde8e8;color:var(--danger)}
+.b-warn{background:#fef3c7;color:#92400e}.b-info{background:#e1effe;color:var(--pd)}
+.b-desc{background:#ede9fe;color:#5b21b6}.b-pend{background:#f3f4f6;color:#374151}
+.frow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.frow .f{display:flex;flex-direction:column;gap:4px;font-size:.79rem;font-weight:600;color:var(--muted)}
+.frow select,.frow input{padding:8px 11px;border:1px solid var(--bdr);border-radius:7px;font-size:.85rem;background:#f9fafb;width:auto;min-width:120px}
+.empty{text-align:center;padding:36px;color:var(--muted)}
+.ch{position:relative;height:270px}
+.os-s{font-size:.71rem;color:var(--muted);font-style:italic}
+.hl td{background:#fff5f5!important}
+.hl2 td{background:#fdf4ff!important}
+.tq{font-size:.67rem;background:#fde8e8;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700}
+.disc-chip{display:inline-flex;align-items:center;gap:6px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:20px;padding:4px 12px;font-size:.78rem;color:#5b21b6;font-weight:600;margin:3px}
+.sect-head{font-size:.88rem;font-weight:700;padding:8px 12px;border-radius:7px;margin:14px 0 10px}
+.sh-blue{background:#e1effe;color:var(--pd)}.sh-green{background:#def7ec;color:var(--ok)}
+/* Botões de ação */
+.btn-pdf{background:#dc2626;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-pdf:hover{background:#b91c1c}
+.btn-print{background:#6b7280;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-print:hover{background:#4b5563}
+.btn-o{background:transparent;border:1px solid var(--p);color:var(--p);border-radius:7px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer}
+.btn-o:hover{background:var(--p);color:#fff}
+.btn-sm{padding:5px 10px;font-size:.74rem}
+.action-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.sync-bar{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:.78rem;color:var(--ok);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* PRINT */
+@media print{
+  header,nav,.action-bar,.sync-bar,.frow button,.no-print{display:none!important}
+  .page{display:block!important}
+  .card{box-shadow:none;border:1px solid #ddd;page-break-inside:avoid}
+  body{background:#fff}
+  .cont{padding:0}
+  .ch{height:220px}
+  h1.print-title{display:block!important;font-size:1.2rem;font-weight:700;margin-bottom:16px;color:#1e429f}
+}
+h1.print-title{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⚖️ Gestão de Balanças — ADM</h1>
+    <span>LivUp · Visualização somente leitura</span>
+  </div>
+  <span class="badge-adm">🔒 ADM</span>
+</header>
+<nav>
+  <button class="active" onclick="goPage('dashboard',this)">📊 Dashboard</button>
+  <button onclick="goPage('mes',this)">📅 Lista do Mês</button>
+  <button onclick="goPage('resumo',this)">📋 Resumo</button>
+  <button onclick="goPage('relatorio',this)">📁 Relatório</button>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active cont">
+  <div class="sync-bar"><div class="sync-dot"></div><span id="sync-txt">Sincronizando dados...</span></div>
+  <div class="action-bar">
+    <button class="btn-pdf" onclick="exportPDF('page-dashboard')">📄 Exportar PDF</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+  <h1 class="print-title">Dashboard — Gestão de Balanças</h1>
+  <div class="g5" style="margin-bottom:16px">
+    <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
+    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (mês)</div></div>
+    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">Aguardando aprovação</div></div>
+    <div class="stat red"><div class="v" id="s-fora">0</div><div class="l">Na terceirizada</div></div>
+    <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras por balança — mês atual</div><div class="ch"><canvas id="cQ"></canvas></div></div>
+    <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Custo acumulado por balança (top 15)</div><div class="ch"><canvas id="cC"></canvas></div></div>
+  </div>
+  <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras mensais — últimos 6 meses</div><div class="ch"><canvas id="cH"></canvas></div></div>
+  <div class="g2">
+    <div class="card"><h2>⚡ Reincidências (&lt;7 dias após retorno)</h2><div id="t-reinc"></div></div>
+    <div class="card"><h2>🗑 Balanças descartadas</h2><div id="t-desc-dash"></div></div>
+  </div>
+</div>
+
+<!-- LISTA DO MÊS -->
+<div id="page-mes" class="page cont">
+  <div class="action-bar no-print">
+    <button class="btn-pdf" onclick="exportPDF('res-mes')">📄 Exportar PDF</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+  <div class="card">
+    <h2>Movimentação do Mês</h2>
+    <div class="frow">
+      <div class="f"><label>Mês</label><input type="month" id="mes-f"></div>
+      <button class="btn-o btn-sm no-print" onclick="renderMes()">Filtrar</button>
+    </div>
+  </div>
+  <div id="res-mes"></div>
+</div>
+
+<!-- RESUMO -->
+<div id="page-resumo" class="page cont">
+  <div class="action-bar no-print">
+    <button class="btn-pdf" onclick="exportPDF('conteudo-resumo')">📄 Exportar PDF</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+  <div id="conteudo-resumo">
+    <h1 class="print-title">Resumo Geral — Gestão de Balanças</h1>
+    <div class="g3" style="margin-bottom:16px">
+      <div class="stat grn"><div class="v" id="rs-aprov">0</div><div class="l">Aprovadas</div></div>
+      <div class="stat ora"><div class="v" id="rs-aguard">0</div><div class="l">Aguardando aprovação</div></div>
+      <div class="stat red"><div class="v" id="rs-reprov">0</div><div class="l">Reprovadas</div></div>
+    </div>
+    <div class="g3" style="margin-bottom:16px">
+      <div class="stat pur"><div class="v" id="rs-desc">0</div><div class="l">Descartadas</div></div>
+      <div class="stat"><div class="v" id="rs-ret">0</div><div class="l">Retornaram</div></div>
+      <div class="stat red"><div class="v" id="rs-fora2">0</div><div class="l">Na terceirizada</div></div>
+    </div>
+    <div class="card"><h2>🗑 Balanças descartadas</h2><div id="t-desc-res"></div></div>
+    <div class="card"><h2>📋 Todas as ocorrências</h2>
+      <div class="frow no-print">
+        <div class="f"><label>Mês</label><input type="month" id="rf-mes"></div>
+        <div class="f"><label>Status</label>
+          <select id="rf-status">
+            <option value="">Todos</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="AGUARDANDO APROVAÇÃO">Aguardando</option>
+            <option value="APROVADO">Aprovado</option>
+            <option value="REPROVADO">Reprovado</option>
+            <option value="DESCARTADO">Descartado</option>
+          </select>
+        </div>
+        <button class="btn-o btn-sm no-print" onclick="renderResumo()">Filtrar</button>
+      </div>
+      <div id="t-todas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RELATÓRIO -->
+<div id="page-relatorio" class="page cont">
+  <div class="action-bar no-print">
+    <button class="btn-pdf" onclick="exportPDF('conteudo-rel')">📄 Exportar PDF</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+  <div class="card no-print">
+    <h2>Relatório por Período</h2>
+    <div class="frow">
+      <div class="f"><label>De</label><input type="date" id="r-ini"></div>
+      <div class="f"><label>Até</label><input type="date" id="r-fim"></div>
+      <div class="f"><label>Balança</label><select id="r-bal"><option value="">Todas</option></select></div>
+      <button class="btn-o btn-sm" onclick="gerarRel()">Gerar</button>
+    </div>
+  </div>
+  <div id="conteudo-rel"></div>
+</div>
+
+<script>
+const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
+const DATA_VERSION = '5';
+
+// ── DADOS (mesma lógica do index.html) ──────────────────────────────────────
+const PLANILHA=[
+["AS-BL-185","140900","LD1050","LIDER","12333","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-228","151412","LD1051","LIDER","12332","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-034","12581053","9094 PLUS","TOLEDO","123335","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-175","140894","LD1050","LIDER","123315","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-141","138935","LD1050","LIDER","12330","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-144","138938","LD1050","LIDER","123314","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-201","142027","LD1050","LIDER","123325","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-215","138943","LD1050","LIDER","123301","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-150","138933","LD1050","LIDER","3243965","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-183","140888","LD1050","LIDER","123312","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-199","142025","LD1050","LIDER","123305","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-149","138941","B-140","LIDER","123332","2026-01-01","2026-01-23","2026-02-11","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-211","142024","LD1050","LIDER","123303","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-222","151427","LD1050","LIDER","123321","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-004","3002533401","9094 PLUS","TOLEDO","123341","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","123334","2026-01-01","2026-01-23","2026-02-11","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-225","151422","LD1050","LIDER","123302","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-236","151417","LD1050","LIDER","123313","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-173","140901","LD1050","LIDER","123322","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-102","13039241","TI200","TOLEDO","123353","2026-01-01","2026-01-23","2026-02-11","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-166","140895","LD1050","LIDER","123323","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-170","140897","LD1050","LIDER","123324","2026-01-01","2026-01-23","2026-02-11","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-179","140880","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-229","151421","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-172","140898","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-194","142013","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-230","151419","LD1050","LIDER","12712","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","12712","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-045","13026443","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","REPROVADO","VINICIOS",0],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-058","13026442","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-043","13026485","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-061","13026480","9094 PLUS","TOLEDO","12713","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-181","140890","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-220","151423","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-191","142007","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-177","140904","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-187","140893","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-184","140896","LD1050","LIDER","12711","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-238","151410","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",511],
+["AS-BL-195","138934","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","REPROVADO","VINICIOS",0],
+["AS-BL-208","142008","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-192","142010","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-148","138942","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-180","140899","LD1050","LIDER","12710","2026-02-01","2026-02-12","2026-03-05","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-112","13010690","9094 PLUS","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-247","14069993","2098","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","32kg/5g","APROVADO","VINICIOS",430],
+["AS-BL-250","14133167","2098","TOLEDO","12714","2026-02-01","2026-02-12","2026-03-05","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-209","142011","LD1050","LIDER","3244123","2026-02-01","2026-02-12","2026-03-05","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-034","12581053","9094 PLUS","TOLEDO","127354","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","127351","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-003","3002533601","9094 PLUS","TOLEDO","127352","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-089","13026445","9094 PLUS","TOLEDO","127353","2026-03-01","2026-03-05","2026-03-19","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-185","140900","LD1050","LIDER","127355","2026-03-01","2026-03-05","2026-03-19","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-190","142023","LD1050","LIDER","12736","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-142","138932","LD1050","LIDER","127361","2026-03-01","2026-03-05","2026-03-19","3KG/0,5gr","APROVADO","VINICIOS",538],
+["AS-BL-207","142005","LD1050","LIDER","127364","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-205","142028","LD1050","LIDER","127362","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-204","142006","LD1050","LIDER","127363","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-188","140891","LD1050","LIDER","12736","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-170","140897","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-210","142020","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",390],
+["AS-BL-143","138940","LD1050","LIDER","127372","2026-03-01","2026-03-05","2026-03-19","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-189","142022","LD1050","LIDER","127373","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-201","142027","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-212","142029","LD1050","LIDER","12737","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-231","151414","LD1050","LIDER","12738","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",495],
+["AS-BL-242","14090493","TI200","TOLEDO","127381","2026-03-01","2026-03-05","2026-03-19","60KG/10G","APROVADO","VINICIOS",528],
+["AS-BL-100","13039239","TI200","TOLEDO","123351","2026-01-15","2026-01-23","2026-03-19","60KG/10G","APROVADO","VINICIOS",528],
+["AS-BL-092","12738428","TI200","TOLEDO","123352","2026-01-15","2026-01-23","2026-03-19","60kg/20g","APROVADO","VINICIOS",390],
+["AS-BL-099","13039242","TI200","TOLEDO","12335","2026-01-15","2026-01-23","2026-03-19","60KG/10G","APROVADO","VINICIOS",495],
+["AS-BL-198","142012","LD1050","LIDER","124481","2026-03-19","2026-03-19","2026-03-31","60KG/10G","APROVADO","VINICIOS",430],
+["AS-BL-146","138937","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",511],
+["AS-BL-238","151410","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-232","151424","LD1050","LIDER","12448","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",495],
+["AS-BL-104","13026470","9094 PLUS","TOLEDO","12449","2026-03-19","2026-03-19","2026-03-31","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-222","151427","LD1050","LIDER","124494","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-211","142024","LD1050","LIDER","124495","2026-03-19","2026-03-19","2026-03-31","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-250","14133167","TI200","TOLEDO","124502","2026-03-15","2026-03-20","2026-03-31","60KG/10G","APROVADO","VINICIOS",0],
+["AS-BL-147","138936","LD1050","LIDER","123311","2026-01-10","2026-01-23","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-176","140882","LD1050","LIDER","3243964","2026-01-10","2026-01-23","2026-03-31","3KG/0,5gr","APROVADO","VINICIOS",430],
+["AS-BL-202","102026","LD1050","LIDER","123293","2026-01-10","2026-01-23","2026-03-31","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-165","140903","LD1050","LIDER","12450","2026-03-19","2026-03-20","2026-03-31","6KG/1gr","APROVADO","VINICIOS",538],
+["AS-BL-167","140885","LD1050","LIDER","12331","2026-01-10","2026-01-23","2026-03-31","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-091","12738429","TI200","TOLEDO","123354","2026-01-10","2026-01-23","2026-04-01","3KG/0,5gr","APROVADO","VINICIOS",390],
+["AS-BL-003","3002533601","9094 PLUS","TOLEDO","126562","2026-03-30","2026-04-02","2026-04-15","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-054","13026440","9094 PLUS","TOLEDO","123333","2026-01-10","2026-01-23","2026-04-15","15KG/5gr","APROVADO","VINICIOS",330],
+["AS-BL-200","142015","LD1050","LIDER","126541","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-175","140894","LD1050","LIDER","12448","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-207","142005","LD1050","LIDER","126552","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-196","142019","LD1050","LIDER","128584","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",528],
+["AS-BL-168","140884","LD1050","LIDER","123304","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-171","140886","LD1050","LIDER","12329","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-193","142009","LD1050","LIDER","128573","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-206","142021","LD1050","LIDER","126553","2026-03-30","2026-04-02","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-212","142029","LD1050","LIDER","128583","2026-04-10","2026-04-22","2026-04-30","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-183","140888","LD1050","LIDER","128575","2026-04-10","2026-04-22","2026-04-30","6KG/1gr","APROVADO","VINICIOS",390],
+["AS-BL-143","138940","LD1050","LIDER","128586","2026-04-10","2026-04-22","2026-04-30","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-181","140890","LD1050","LIDER","126543","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-187","140893","LD1050","LIDER","126542","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-142","138932","LD1050","LIDER","126544","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-233","151429","LD1050","LIDER","126545","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-150","138933","LD1050","LIDER","126551","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-229","151421","LD1050","LIDER","126555","2026-03-30","2026-04-02","2026-04-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-228","151412","LD1050","LIDER","126554","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-210","142020","LD1050","LIDER","12655","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-184","140896","LD1050","LIDER","12656","2026-03-30","2026-04-02","2026-04-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-018","13026456","9094 PLUS","TOLEDO","123343","2026-01-15","2026-01-23","2026-04-16","15KG/5gr","APROVADO","VINICIOS",390],
+["AS-BL-192","142010","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-06-10","6KG/1gr","APROVADO","VINICIOS",450],
+["AS-BL-007","13026477","9094 PLUS","TOLEDO","12768","2026-04-25","2026-04-30","2026-05-15","15KG/5gr","APROVADO","VINICIOS",0],
+["AS-BL-145","138934","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-05-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-150","138933","LD1050","LIDER","12767","2026-04-25","2026-04-30","2026-05-15","3KG/0,5gr","APROVADO","VINICIOS",0],
+["AS-BL-230","151419","LD1050","LIDER","12766","2026-04-25","2026-04-30","2026-05-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-205","142028","LD1050","LIDER","12857","2026-04-10","2026-04-16","2026-05-15","6KG/1gr","APROVADO","VINICIOS",430],
+["AS-BL-049","12675622","9094 PLUS","TOLEDO","12856","2026-04-10","2026-04-16","2026-05-15","30kg/10g","APROVADO","VINICIOS",0],
+["AS-BL-238","151410","LD1050","LIDER","128585","2026-04-15","2026-04-22","2026-05-15","6KG/1gr","APROVADO","VINICIOS",0],
+["AS-BL-052","12657588","9094 PLUS","TOLEDO","128564","2026-04-15","2026-04-22","2026-05-15","6kg/2g","APROVADO","VINICIOS",0]
+];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function initDados(){
+  const tagMap={};
+  PLANILHA.forEach(r=>{
+    const t=r[0];if(!t||t==='AS-BL-')return;
+    if(!tagMap[t])tagMap[t]={id:uid(),tag:t,serie:r[1],modelo:r[2],marca:r[3],capDiv:r[8],setor:'',valor:0};
+  });
+  const bal=Object.values(tagMap);
+  const tid={};bal.forEach(b=>tid[b.tag]=b.id);
+  const oc=PLANILHA.filter(r=>r[0]&&r[0]!=='AS-BL-').map(r=>({
+    id:uid(),balancaId:tid[r[0]]||null,
+    numeroOS:r[4]||'',dataQuebra:r[5]||'',turno:'',setor:'',problemaConstatado:'',
+    dataRetirada:r[6]||null,dataAprovacao:null,previsaoChegada:null,
+    status:r[9]||'AGUARDANDO APROVAÇÃO',aprovadoPor:r[10]||'',
+    dataRetorno:r[7]||null,custo:r[11]||0,
+    descartado:false,quemDescartou:'',dataDescarte:null,capDiv:r[8]||'',obs:'',
+    valorOrcamento:0,qtdOrcamento:0,quemAcompanhouTeste:'',quemValidou:''
+  }));
+  return {bal,oc};
+}
+
+let {bal:balancas,oc:ocorrencias}=initDados();
+const charts={};
+
+// Sync com Firebase (adiciona novos do almoxarifado)
+async function syncFirebase(){
+  try{
+    const dados=await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
+    if(!dados){setSyncOk();return;}
+    const regs=Object.entries(dados).map(([id,v])=>({fbId:id,...v}));
+    let mudou=false;
+    regs.forEach(reg=>{
+      const jaExiste=ocorrencias.find(o=>o.fbId===reg.fbId);
+      if(jaExiste){
+        // Atualiza status se manutenção atualizou
+        if(reg.status&&reg.status!==jaExiste.status){jaExiste.status=reg.status;mudou=true;}
+        if(reg.dataRetorno&&!jaExiste.dataRetorno){jaExiste.dataRetorno=reg.dataRetorno;mudou=true;}
+        return;
+      }
+      const bal=balancas.find(b=>b.tag===reg.tag);
+      if(!bal)return;
+      ocorrencias.push({
+        id:uid(),fbId:reg.fbId,balancaId:bal.id,
+        numeroOS:'',dataQuebra:reg.dataQuebra||'',turno:reg.turno||'',
+        setor:reg.setor||'',problemaConstatado:reg.problema||'',
+        dataRetirada:null,dataAprovacao:null,previsaoChegada:null,
+        status:reg.status||'AGUARDANDO APROVAÇÃO',aprovadoPor:'',dataRetorno:reg.dataRetorno||null,
+        custo:reg.custo||0,descartado:false,quemDescartou:'',dataDescarte:null,
+        capDiv:'',obs:'',valorOrcamento:0,qtdOrcamento:0,quemAcompanhouTeste:'',quemValidou:''
+      });
+      mudou=true;
+    });
+    setSyncOk(regs.length);
+    if(mudou)renderAll();
+  }catch(e){document.getElementById('sync-txt').textContent='⚠️ Sem conexão — exibindo dados base';}
+}
+function setSyncOk(n){
+  const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('sync-txt').textContent=`Sincronizado às ${agora}${n?' · '+n+' registros Firebase':''}`;
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function fmt(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fd(s){if(!s)return '—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function diffD(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function nomeBal(id){const b=balancas.find(x=>x.id===id);return b?b.tag:'?';}
+function mesAtual(){return new Date().toISOString().slice(0,7);}
+function nomeMes(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleString('pt-BR',{month:'short',year:'2-digit'});}
+function getStatus(o){if(o.status==='DESCARTADO')return'DESCARTADO';if(!o.numeroOS)return'PENDENTE';return o.status||'AGUARDANDO APROVAÇÃO';}
+function statusBadge(s){
+  if(!s||s==='PENDENTE')return`<span class="badge b-pend">Pendente</span>`;
+  if(s==='APROVADO')return`<span class="badge b-ok">Aprovado</span>`;
+  if(s==='REPROVADO')return`<span class="badge b-bad">Reprovado</span>`;
+  if(s==='DESCARTADO')return`<span class="badge b-desc">Descartado</span>`;
+  return`<span class="badge b-warn">Aguardando</span>`;
+}
+function detectReinc(balId,dataQ,ignId=null){
+  const hist=ocorrencias.filter(o=>o.balancaId===balId&&o.id!==ignId&&o.dataRetorno).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
+  for(const o of hist){if(o.dataRetorno<dataQ){const d=diffD(o.dataRetorno,dataQ);if(d<=7)return{oc:o,dias:d};}}
+  return null;
+}
+function isReinc(o){return!!detectReinc(o.balancaId,o.dataQuebra,o.id);}
+
+// ── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
+function goPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  renderAll();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const mes=mesAtual();
+  const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
+  document.getElementById('s-bal').textContent=balancas.length;
+  document.getElementById('s-aprov').textContent=ocMes.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  document.getElementById('s-fora').textContent=ocorrencias.filter(o=>o.dataRetirada&&!o.dataRetorno).length;
+  document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+
+  const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
+  ocMes.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
+  const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
+  mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
+
+  const cBal={};balancas.forEach(b=>cBal[b.id]={tag:b.tag,c:0});
+  ocorrencias.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
+  const dC=Object.values(cBal).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,15);
+  mkChart('cC','bar',dC.map(x=>x.tag),[{label:'Custo',data:dC.map(x=>x.c),backgroundColor:'#057a55',borderRadius:5}],true);
+
+  const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
+  mkChart('cH','line',m6.map(nomeMes),[{label:'Quebras',data:m6.map(m=>ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(m)).length),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.1)',fill:true,tension:.3,pointRadius:5}]);
+
+  const reincs=ocorrencias.filter(isReinc);
+  const elR=document.getElementById('t-reinc');
+  if(!reincs.length){elR.innerHTML='<p class="empty">Nenhuma reincidência.</p>';}
+  else elR.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Retornou</th><th>Dias</th><th>OS</th></tr></thead><tbody>
+  ${reincs.sort((a,b)=>b.dataQuebra.localeCompare(a.dataQuebra)).slice(0,15).map(o=>{const r=detectReinc(o.balancaId,o.dataQuebra,o.id);return`<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${fd(o.dataQuebra)}</td><td>${fd(r.oc.dataRetorno)}</td><td><span class="badge b-bad">${r.dias}d</span></td><td class="os-s">${o.numeroOS||'—'}</td></tr>`;}).join('')}</tbody></table>`;
+
+  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  const elD=document.getElementById('t-desc-dash');
+  if(!descs.length){elD.innerHTML='<p class="empty">Nenhuma descartada.</p>';}
+  else elD.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px">${descs.map(o=>`<div class="disc-chip">🗑 ${nomeBal(o.balancaId)}${o.quemDescartou?' · '+o.quemDescartou:''}</div>`).join('')}</div>`;
+}
+
+function mkChart(id,type,labels,datasets,isMoeda=false){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id)?.getContext('2d');if(!ctx)return;
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:isMoeda?{label:c=>' '+fmt(c.parsed.y)}:{}}},
+    scales:{y:{beginAtZero:true,ticks:isMoeda?{callback:v=>'R$ '+v.toLocaleString('pt-BR')}:{stepSize:1}}}}});
+}
+
+// ── LISTA DO MÊS ─────────────────────────────────────────────────────────────
+function renderMes(){
+  const mes=document.getElementById('mes-f').value||mesAtual();
+  document.getElementById('mes-f').value=mes;
+  const ents=ocorrencias.filter(o=>o.dataRetirada&&o.dataRetirada.startsWith(mes)).sort((a,b)=>a.dataRetirada.localeCompare(b.dataRetirada));
+  const sais=ocorrencias.filter(o=>o.dataRetorno&&o.dataRetorno.startsWith(mes)).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
+  const[y,m]=mes.split('-');
+  const nomeMesExt=new Date(y,m-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  const tbl=(lista,dcol,dfn)=>{
+    if(!lista.length)return'<p class="empty">Nenhuma neste mês.</p>';
+    return`<table><thead><tr><th>TAG</th><th>Modelo</th><th>OS</th><th>Quebra</th><th>${dcol}</th><th>Setor</th><th>Status</th><th>Custo</th></tr></thead>
+    <tbody>${lista.map(o=>{const b=balancas.find(x=>x.id===o.balancaId);return`<tr>
+      <td><strong>${b?b.tag:'?'}</strong></td><td>${b?(b.modelo+' '+b.marca).trim():'—'}</td>
+      <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataQuebra)}</td><td>${fd(dfn(o))}</td>
+      <td>${o.setor||'—'}</td><td>${statusBadge(getStatus(o))}</td><td>${fmt(o.custo)}</td></tr>`;}).join('')}</tbody></table>`;
+  };
+  document.getElementById('res-mes').innerHTML=`<div class="card">
+    <div class="sect-head sh-blue">📤 Saíram para conserto — ${ents.length} balança(s) em ${nomeMesExt}</div>${tbl(ents,'Data Saída',o=>o.dataRetirada)}
+    <div class="sect-head sh-green" style="margin-top:18px">📥 Retornaram do conserto — ${sais.length} balança(s) em ${nomeMesExt}</div>${tbl(sais,'Data Retorno',o=>o.dataRetorno)}
+  </div>`;
+}
+
+// ── RESUMO ────────────────────────────────────────────────────────────────────
+function renderResumo(){
+  const fMes=document.getElementById('rf-mes').value;
+  const fSt=document.getElementById('rf-status').value;
+  let lista=[...ocorrencias];
+  if(fMes)lista=lista.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
+  if(fSt)lista=lista.filter(o=>getStatus(o)===fSt);
+
+  document.getElementById('rs-aprov').textContent=ocorrencias.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('rs-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO').length;
+  document.getElementById('rs-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
+  document.getElementById('rs-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+  document.getElementById('rs-ret').textContent=ocorrencias.filter(o=>o.dataRetorno).length;
+  document.getElementById('rs-fora2').textContent=ocorrencias.filter(o=>o.dataRetirada&&!o.dataRetorno).length;
+
+  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  const dd=document.getElementById('t-desc-res');
+  if(!descs.length)dd.innerHTML='<p class="empty">Nenhuma descartada.</p>';
+  else dd.innerHTML=`<table><thead><tr><th>TAG</th><th>Modelo</th><th>Data Quebra</th><th>Data Descarte</th><th>Quem autorizou</th><th>OS</th></tr></thead>
+  <tbody>${descs.map(o=>{const b=balancas.find(x=>x.id===o.balancaId);return`<tr class="hl2">
+    <td><strong>${b?b.tag:'?'}</strong></td><td>${b?(b.modelo+' '+b.marca).trim():'—'}</td>
+    <td>${fd(o.dataQuebra)}</td><td>${fd(o.dataDescarte)}</td>
+    <td>${o.quemDescartou||'—'}</td><td class="os-s">${o.numeroOS||'—'}</td></tr>`}).join('')}</tbody></table>`;
+
+  const tel=document.getElementById('t-todas');
+  if(!lista.length){tel.innerHTML='<p class="empty">Nenhuma ocorrência.</p>';return;}
+  tel.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>OS</th><th>Saída</th><th>Status</th><th>Retorno</th><th>Custo</th></tr></thead>
+  <tbody>${lista.sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||'')).map(o=>`<tr class="${isReinc(o)?'hl':''}">
+    <td><strong>${nomeBal(o.balancaId)}</strong>${isReinc(o)?'<span class="tq" style="margin-left:4px">⚡</span>':''}</td>
+    <td>${fd(o.dataQuebra)}</td><td>${o.turno||'—'}</td><td>${o.setor||'—'}</td>
+    <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td>
+    <td>${statusBadge(getStatus(o))}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+document.getElementById('rf-mes').addEventListener('change',renderResumo);
+document.getElementById('rf-status').addEventListener('change',renderResumo);
+
+// ── RELATÓRIO ─────────────────────────────────────────────────────────────────
+function gerarRel(){
+  const ini=document.getElementById('r-ini').value;
+  const fim=document.getElementById('r-fim').value;
+  const bid=document.getElementById('r-bal').value;
+  let lista=[...ocorrencias];
+  if(ini)lista=lista.filter(o=>o.dataQuebra>=ini);
+  if(fim)lista=lista.filter(o=>o.dataQuebra<=fim);
+  if(bid)lista=lista.filter(o=>o.balancaId===bid);
+  lista.sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
+  const total=lista.reduce((s,o)=>s+(o.custo||0),0);
+  const porBal={};
+  lista.forEach(o=>{if(!porBal[o.balancaId])porBal[o.balancaId]={tag:nomeBal(o.balancaId),n:0,c:0};porBal[o.balancaId].n++;porBal[o.balancaId].c+=(o.custo||0);});
+  const rank=Object.values(porBal).sort((a,b)=>b.n-a.n);
+  const el=document.getElementById('conteudo-rel');
+  if(!lista.length){el.innerHTML='<div class="card"><p class="empty">Nenhuma ocorrência no período.</p></div>';return;}
+  const aprov=lista.filter(o=>o.status==='APROVADO').length;
+  const aguard=lista.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  const reprov=lista.filter(o=>o.status==='REPROVADO').length;
+  const desc=lista.filter(o=>getStatus(o)==='DESCARTADO').length;
+  const ret=lista.filter(o=>o.dataRetorno).length;
+  el.innerHTML=`<h1 class="print-title">Relatório — Gestão de Balanças</h1>
+    <div class="g5" style="margin-bottom:14px">
+      <div class="stat"><div class="v">${lista.length}</div><div class="l">Ocorrências</div></div>
+      <div class="stat grn"><div class="v">${aprov}</div><div class="l">Aprovadas</div></div>
+      <div class="stat ora"><div class="v">${aguard}</div><div class="l">Aguardando</div></div>
+      <div class="stat red"><div class="v">${reprov}</div><div class="l">Reprovadas</div></div>
+      <div class="stat pur"><div class="v">${desc}</div><div class="l">Descartadas</div></div>
+    </div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="stat"><div class="v">${ret}</div><div class="l">Retornaram</div></div>
+      <div class="stat grn"><div class="v">${fmt(total)}</div><div class="l">Custo total</div></div>
+    </div>
+    <div class="card"><h2>Ranking por balança</h2>
+      <table><thead><tr><th>#</th><th>TAG</th><th>Quebras</th><th>Custo total</th></tr></thead>
+      <tbody>${rank.map((x,i)=>`<tr><td>${i+1}</td><td>${x.tag}</td><td><span class="badge b-info">${x.n}</span></td><td>${fmt(x.c)}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <div class="card"><h2>Detalhe das ocorrências</h2>
+      <table><thead><tr><th>TAG</th><th>OS</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>Saída</th><th>Status</th><th>Retorno</th><th>Custo</th></tr></thead>
+      <tbody>${lista.map(o=>`<tr class="${isReinc(o)?'hl':getStatus(o)==='DESCARTADO'?'hl2':''}">
+        <td>${nomeBal(o.balancaId)}${isReinc(o)?'<span class="tq" style="margin-left:4px">⚡</span>':''}</td>
+        <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataQuebra)}</td>
+        <td>${o.turno||'—'}</td><td>${o.setor||'—'}</td><td>${fd(o.dataRetirada)}</td>
+        <td>${statusBadge(getStatus(o))}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+}
+
+// Select de balanças para o relatório
+function renderRelSelect(){
+  const s=[...balancas].sort((a,b)=>a.tag.localeCompare(b.tag));
+  document.getElementById('r-bal').innerHTML='<option value="">Todas</option>'+s.map(b=>`<option value="${b.id}">${b.tag}</option>`).join('');
+}
+
+// ── EXPORTAR PDF ──────────────────────────────────────────────────────────────
+function exportPDF(elementId){
+  const el=document.getElementById(elementId);
+  const pg=document.querySelector('.page.active');
+  const title=pg?pg.querySelector('h1.print-title'):null;
+  if(title)title.style.display='block';
+  const opt={
+    margin:[10,10,10,10],
+    filename:'gestao-balancas-'+new Date().toISOString().slice(0,10)+'.pdf',
+    image:{type:'jpeg',quality:0.97},
+    html2canvas:{scale:2,useCORS:true},
+    jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}
+  };
+  html2pdf().set(opt).from(el).save().then(()=>{
+    if(title)title.style.display='none';
+  });
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){
+  renderRelSelect();
+  const pg=document.querySelector('.page.active')?.id;
+  if(pg==='page-dashboard')renderDashboard();
+  if(pg==='page-mes')renderMes();
+  if(pg==='page-resumo')renderResumo();
+}
+
+document.getElementById('mes-f').value=mesAtual();
+renderAll();
+syncFirebase();
+setInterval(syncFirebase,30000);
+</script>
+</body>
+</html>
