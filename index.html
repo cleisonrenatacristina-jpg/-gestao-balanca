@@ -626,7 +626,8 @@ const PLANILHA=[
 ];
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
-const DATA_VERSION = '5'; // incrementar aqui força reimportação da planilha
+const DATA_VERSION = '5';
+const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
@@ -1375,6 +1376,82 @@ function renderAll(){
 }
 document.getElementById('mes-f').value=mesAtual();
 renderAll();
+
+// ── SINCRONIZAÇÃO COM FIREBASE (dados do almoxarifado) ───────────────────────
+async function sincronizarFirebase(){
+  try {
+    const dados = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
+    if(!dados) return;
+    const registros = Object.entries(dados).map(([id,v])=>({fbId:id,...v}));
+    let mudou = false;
+    registros.forEach(reg => {
+      // Só importa registros com status AGUARDANDO (criados pelo almoxarifado)
+      if(reg.status !== 'AGUARDANDO') return;
+      // Verifica se já existe no localStorage (pelo fbId)
+      const jaExiste = ocorrencias.find(o=>o.fbId===reg.fbId);
+      if(jaExiste) return;
+      // Encontra a balança pelo tag
+      const bal = balancas.find(b=>b.tag===reg.tag);
+      if(!bal) return;
+      // Adiciona nova ocorrência vinda do almoxarifado
+      ocorrencias.push({
+        id: uid(),
+        fbId: reg.fbId,
+        balancaId: bal.id,
+        numeroOS: '',
+        dataQuebra: reg.dataQuebra||'',
+        turno: reg.turno||'',
+        setor: reg.setor||'',
+        problemaConstatado: reg.problema||'',
+        dataRetirada: null, dataAprovacao: null, previsaoChegada: null,
+        status: 'AGUARDANDO APROVAÇÃO',
+        aprovadoPor: '', dataRetorno: null, custo: 0,
+        descartado: false, quemDescartou: '', dataDescarte: null,
+        capDiv: '', obs: '', valorOrcamento: 0, qtdOrcamento: 0,
+        quemAcompanhouTeste: '', quemValidou: ''
+      });
+      mudou = true;
+    });
+    if(mudou){
+      salvar();
+      renderAll();
+      // Mostra notificação discreta
+      const nav = document.querySelector('nav');
+      const aviso = document.createElement('div');
+      aviso.style.cssText='background:#1a56db;color:#fff;padding:6px 16px;font-size:.8rem;text-align:center';
+      aviso.textContent='🔔 Nova(s) balança(s) registrada(s) pelo almoxarifado!';
+      nav.after(aviso);
+      setTimeout(()=>aviso.remove(), 5000);
+    }
+
+    // Exporta status das ocorrências para o Firebase ver no almoxarifado
+    const statusMap = {};
+    ocorrencias.forEach(o=>{
+      if(!o.fbId) return;
+      let st = 'AGUARDANDO';
+      if(o.status==='DESCARTADO') st='DESCARTADO';
+      else if(o.dataRetorno) st='VOLTOU';
+      else if(o.dataRetirada) st='SAIU';
+      else if(o.status==='APROVADO') st='APROVADO';
+      else if(o.status==='REPROVADO') st='REPROVADO';
+      statusMap[o.fbId] = { status: st, custo: o.custo||0, dataRetorno: o.dataRetorno||null };
+    });
+    // Atualiza status no Firebase em batch
+    if(Object.keys(statusMap).length){
+      const updates = {};
+      Object.entries(statusMap).forEach(([fbId,v])=>{
+        updates[`/ocorrencias/${fbId}/status`] = v.status;
+        updates[`/ocorrencias/${fbId}/custo`]  = v.custo;
+        if(v.dataRetorno) updates[`/ocorrencias/${fbId}/dataRetorno`] = v.dataRetorno;
+      });
+      fetch(`${DB}/.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).catch(()=>{});
+    }
+  } catch(e){ console.warn('Firebase sync error:', e); }
+}
+
+// Sincroniza na abertura e a cada 30 segundos
+sincronizarFirebase();
+setInterval(sincronizarFirebase, 30000);
 </script>
 </body>
 </html>

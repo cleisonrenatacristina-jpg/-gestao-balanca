@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Almoxarifado — Balanças</title>
+<style>
+:root{--p:#1a56db;--pd:#1e429f;--ok:#057a55;--danger:#e02424;--warn:#f59e0b;--bg:#f3f4f6;--card:#fff;--bdr:#e5e7eb;--muted:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#111827;min-height:100vh}
+header{background:var(--pd);color:#fff;padding:14px 18px;text-align:center}
+header h1{font-size:1.15rem;font-weight:700}
+header p{font-size:.78rem;opacity:.8;margin-top:2px}
+.wrap{max-width:540px;margin:0 auto;padding:16px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:18px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card h2{font-size:.85rem;font-weight:700;color:var(--pd);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px}
+form{display:flex;flex-direction:column;gap:12px}
+label{font-size:.8rem;font-weight:600;color:var(--muted)}
+input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.95rem;background:#f9fafb;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:#fff}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:420px){.r2{grid-template-columns:1fr}}
+.btn{width:100%;padding:13px;border-radius:9px;border:none;font-size:1rem;font-weight:700;cursor:pointer;background:var(--p);color:#fff;transition:background .2s}
+.btn:hover{background:var(--pd)}
+.btn:disabled{background:#9ca3af;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:14px;text-align:center}
+.stat .v{font-size:1.8rem;font-weight:800;color:var(--p)}
+.stat.red .v{color:var(--danger)}
+.stat.grn .v{color:var(--ok)}
+.stat.ora .v{color:#d97706}
+.stat .l{font-size:.74rem;color:var(--muted);margin-top:3px}
+.alert{padding:12px 14px;border-radius:8px;font-size:.88rem;margin-bottom:12px;display:flex;align-items:center;gap:9px}
+.al-ok{background:#def7ec;border-left:4px solid var(--ok);color:#065f46}
+.al-err{background:#fde8e8;border-left:4px solid var(--danger);color:#991b1b}
+.sync{font-size:.72rem;color:var(--muted);text-align:center;margin-top:4px}
+.sync span{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hist{max-height:300px;overflow-y:auto}
+.hist-item{padding:10px 0;border-bottom:1px solid var(--bdr);font-size:.83rem}
+.hist-item:last-child{border-bottom:none}
+.hist-item strong{color:var(--pd)}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
+.b-ok{background:#def7ec;color:var(--ok)}.b-bad{background:#fde8e8;color:var(--danger)}
+.b-warn{background:#fef3c7;color:#92400e}.b-pend{background:#f3f4f6;color:#374151}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚖️ Registro de Balança Quebrada</h1>
+  <p>Almoxarifado — LivUp</p>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat red"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
+    <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
+    <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
+    <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <div class="card">
+    <h2>📦 Registrar entrada de balança quebrada</h2>
+    <form id="form-alm" onsubmit="registrar(event)">
+      <div>
+        <label>TAG da Balança *</label>
+        <input type="text" id="a-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
+          style="font-size:1.05rem;font-weight:600;letter-spacing:.03em">
+        <datalist id="tag-list"></datalist>
+      </div>
+      <div class="r2">
+        <div>
+          <label>Data da Quebra *</label>
+          <input type="date" id="a-quebra" required>
+        </div>
+        <div>
+          <label>Turno</label>
+          <select id="a-turno">
+            <option value="">Selecione...</option>
+            <option>Manhã</option>
+            <option>Tarde</option>
+            <option>Noite</option>
+            <option>Madrugada</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>Setor onde estava a balança</label>
+        <input type="text" id="a-setor" placeholder="Ex: Açougue, Recebimento, Frente de caixa...">
+      </div>
+      <div>
+        <label>Problema constatado</label>
+        <textarea id="a-prob" rows="3" placeholder="Descreva o problema identificado..."></textarea>
+      </div>
+      <button type="submit" class="btn" id="btn-env">Registrar entrada</button>
+    </form>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="card">
+    <h2>📋 Últimas entradas registradas</h2>
+    <div class="sync"><span></span>Sincronizado em tempo real</div>
+    <div class="hist" id="hist"></div>
+  </div>
+</div>
+
+<script>
+const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
+
+// Hoje como padrão
+document.getElementById('a-quebra').value = new Date().toISOString().slice(0,10);
+
+// TAGs conhecidas (para autocomplete)
+const TAGS = ["AS-BL-003","AS-BL-004","AS-BL-007","AS-BL-018","AS-BL-034","AS-BL-043","AS-BL-045","AS-BL-049","AS-BL-052","AS-BL-054","AS-BL-058","AS-BL-061","AS-BL-089","AS-BL-091","AS-BL-092","AS-BL-099","AS-BL-100","AS-BL-102","AS-BL-103","AS-BL-104","AS-BL-112","AS-BL-134","AS-BL-140","AS-BL-141","AS-BL-142","AS-BL-143","AS-BL-144","AS-BL-145","AS-BL-146","AS-BL-147","AS-BL-148","AS-BL-149","AS-BL-150","AS-BL-165","AS-BL-166","AS-BL-167","AS-BL-168","AS-BL-170","AS-BL-171","AS-BL-172","AS-BL-173","AS-BL-175","AS-BL-176","AS-BL-177","AS-BL-179","AS-BL-180","AS-BL-181","AS-BL-182","AS-BL-183","AS-BL-184","AS-BL-185","AS-BL-187","AS-BL-188","AS-BL-189","AS-BL-190","AS-BL-191","AS-BL-192","AS-BL-193","AS-BL-194","AS-BL-195","AS-BL-196","AS-BL-198","AS-BL-199","AS-BL-200","AS-BL-201","AS-BL-202","AS-BL-204","AS-BL-205","AS-BL-206","AS-BL-207","AS-BL-208","AS-BL-209","AS-BL-210","AS-BL-211","AS-BL-212","AS-BL-215","AS-BL-217","AS-BL-220","AS-BL-222","AS-BL-225","AS-BL-228","AS-BL-229","AS-BL-230","AS-BL-231","AS-BL-232","AS-BL-233","AS-BL-236","AS-BL-238","AS-BL-239","AS-BL-242","AS-BL-244","AS-BL-245","AS-BL-246","AS-BL-247","AS-BL-250","AS-BL-251","AS-BL-252"];
+document.getElementById('tag-list').innerHTML = TAGS.map(t=>`<option value="${t}">`).join('');
+
+function fd(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
+function fmt(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
+function statusBadge(s){
+  if(s==='APROVADO') return`<span class="badge b-ok">Aprovado</span>`;
+  if(s==='REPROVADO') return`<span class="badge b-bad">Reprovado</span>`;
+  if(s==='DESCARTADO') return`<span class="badge b-bad">Descartado</span>`;
+  if(s==='SAIU') return`<span class="badge b-warn">Na terceirizada</span>`;
+  if(s==='VOLTOU') return`<span class="badge b-ok">Voltou</span>`;
+  return`<span class="badge b-pend">Aguardando</span>`;
+}
+
+function showMsg(txt, tipo='ok'){
+  const el = document.getElementById('msg');
+  el.innerHTML = `<div class="alert al-${tipo}">${txt}</div>`;
+  if(tipo==='ok') setTimeout(()=>el.innerHTML='', 4000);
+}
+
+async function registrar(e){
+  e.preventDefault();
+  const btn = document.getElementById('btn-env');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  const reg = {
+    tag: document.getElementById('a-tag').value.trim().toUpperCase(),
+    dataQuebra: document.getElementById('a-quebra').value,
+    turno: document.getElementById('a-turno').value,
+    setor: document.getElementById('a-setor').value.trim(),
+    problema: document.getElementById('a-prob').value.trim(),
+    status: 'AGUARDANDO',
+    timestamp: Date.now()
+  };
+  try {
+    const r = await fetch(`${DB}/ocorrencias.json`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(reg)
+    });
+    if(!r.ok) throw new Error('Erro ao salvar');
+    document.getElementById('form-alm').reset();
+    document.getElementById('a-quebra').value = new Date().toISOString().slice(0,10);
+    showMsg(`✅ Balança <strong>${reg.tag}</strong> registrada com sucesso!`);
+    carregarDados();
+  } catch(err){
+    showMsg('❌ Erro ao enviar. Verifique sua conexão.','err');
+  }
+  btn.disabled = false; btn.textContent = 'Registrar entrada';
+}
+
+async function carregarDados(){
+  try {
+    const [ocR] = await Promise.all([
+      fetch(`${DB}/ocorrencias.json`).then(r=>r.json())
+    ]);
+    const ocs = ocR ? Object.entries(ocR).map(([id,v])=>({id,...v})) : [];
+    ocs.sort((a,b)=>b.timestamp-a.timestamp);
+
+    // Stats
+    const fora   = ocs.filter(o=>o.status==='SAIU').length;
+    const volt   = ocs.filter(o=>o.status==='VOLTOU').length;
+    const ag     = ocs.filter(o=>o.status==='AGUARDANDO').length;
+    const aprov  = ocs.filter(o=>o.status==='APROVADO').length;
+    document.getElementById('st-fora').textContent  = fora;
+    document.getElementById('st-volt').textContent  = volt;
+    document.getElementById('st-ag').textContent    = ag;
+    document.getElementById('st-aprov').textContent = aprov;
+
+    // Histórico
+    const hist = document.getElementById('hist');
+    if(!ocs.length){ hist.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px">Nenhum registro ainda.</p>'; return; }
+    hist.innerHTML = ocs.slice(0,30).map(o=>`
+      <div class="hist-item">
+        <strong>${o.tag}</strong> ${statusBadge(o.status)}
+        <br><span style="color:var(--muted)">${fd(o.dataQuebra)} ${o.turno?'· '+o.turno:''} ${o.setor?'· '+o.setor:''}</span>
+        ${o.problema?`<br><span style="color:#4b5563;font-style:italic">${o.problema}</span>`:''}
+        ${o.custo?`<br><strong style="color:var(--ok)">${fmt(o.custo)}</strong>`:''}
+      </div>`).join('');
+  } catch(err){ console.error(err); }
+}
+
+// Atualiza a cada 30 segundos
+carregarDados();
+setInterval(carregarDados, 30000);
+</script>
+</body>
+</html>
