@@ -138,10 +138,14 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <div id="alertas-meta"></div>
   <div class="g5" style="margin-bottom:16px">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
-    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (mês)</div></div>
+    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (total)</div></div>
     <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">Aguardando aprovação</div></div>
-    <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (mês)</div></div>
+    <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
     <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
+  </div>
+  <div id="s-mes-bar" style="background:#eff6ff;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:.8rem;color:var(--pd);display:flex;justify-content:space-between;align-items:center">
+    <span>📅 Quebras este mês: <strong id="s-qmes-val">0</strong> &nbsp;·&nbsp; Custo este mês: <strong id="s-custo-mes-val">R$0</strong></span>
+    <span id="s-mes-label" style="font-weight:600"></span>
   </div>
   <div class="g2">
     <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras por balança — mês atual</div><div class="ch"><canvas id="cQ"></canvas></div></div>
@@ -945,15 +949,33 @@ function renderSelects(){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
+  // Proteção: se dados estiverem vazios, força reimportação
+  if(!balancas.length){
+    const r=importarPlanilha();
+    balancas=r.bal; ocorrencias=r.oc;
+    aplicarPrecosMercado();
+  }
+
   renderAlertasMeta();
   const mes=mesAtual();
   const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
+  const custoMes=ocMes.reduce((s,o)=>s+(o.custo||0),0);
+
+  // Cards: totais gerais (não filtrado por mês)
   document.getElementById('s-bal').textContent=balancas.length;
-  document.getElementById('s-aprov').textContent=ocMes.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('s-aprov').textContent=ocorrencias.filter(o=>o.status==='APROVADO').length;
   document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
-  document.getElementById('s-reprov').textContent=ocMes.filter(o=>o.status==='REPROVADO').length;
-  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
-  document.getElementById('s-desc').textContent=descs.length;
+  document.getElementById('s-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
+  document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+
+  // Barra do mês atual
+  const mesLabel=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  const qMesEl=document.getElementById('s-qmes-val');
+  const custoMesEl=document.getElementById('s-custo-mes-val');
+  const mesLabelEl=document.getElementById('s-mes-label');
+  if(qMesEl) qMesEl.textContent=ocMes.length;
+  if(custoMesEl) custoMesEl.textContent=fmt(custoMes);
+  if(mesLabelEl) mesLabelEl.textContent=mesLabel;
 
   // alertas
   const reincs=ocorrencias.filter(isReinc);
@@ -963,9 +985,11 @@ function renderDashboard(){
   const pend=ocorrencias.filter(o=>getStatus(o)==='PENDENTE').length;
   if(pend){alertEl.innerHTML+=`<div class="alert al-w">⏳ <strong>${pend} ocorrência(s) pendente(s)</strong> aguardam preenchimento pela Manutenção (sem N° O.S. ainda).</div>`;}
 
-  // gráficos
+  // Gráfico quebras: usa últimos 6 meses (mais dados visíveis)
+  const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
   const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
-  ocMes.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
+  // Usa TODOS os dados para o gráfico de quebras por balança (não só o mês)
+  ocorrencias.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
   const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
   mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
 
