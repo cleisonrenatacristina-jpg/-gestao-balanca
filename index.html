@@ -355,6 +355,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
           <div class="step-body">
             <span class="step-lbl">TAG da Balança</span>
             <input type="text" id="s3-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Nº da O.S.</span>
+            <input type="text" id="s3-os" placeholder="Ex: 12333">
             <span class="step-lbl">Valor Orçamento (R$)</span>
             <input type="number" id="s3-orcamento" placeholder="0,00" min="0" step="0.01">
             <span class="step-lbl">Qtd balanças no orçamento</span>
@@ -2116,6 +2118,8 @@ function step3Salvar(){
   const oc=findOcAtiva(bal.id, o=>o.dataRetirada&&o.status!=='DESCARTADO'&&!o.dataRetorno)||
            findOcAtiva(bal.id, o=>!o.dataRetorno);
   if(!oc){stepMsg('s3-msg','Nenhuma ocorrência ativa para esta TAG.','err');return;}
+  const novoOS = document.getElementById('s3-os').value.trim();
+  if(novoOS) oc.numeroOS = novoOS; // só sobrescreve se preenchido
   oc.valorOrcamento=parseFloat(document.getElementById('s3-orcamento').value)||0;
   oc.qtdOrcamento=parseInt(document.getElementById('s3-qtd').value)||0;
   oc.status=decisao;
@@ -2131,6 +2135,7 @@ function step3Salvar(){
   if(oc.fbId) fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:oc.status,custo:oc.custo})}).catch(()=>{});
   salvar();
   document.getElementById('s3-tag').value='';
+  document.getElementById('s3-os').value='';
   stepMsg('s3-msg',`✅ Decisão "${decisao}" salva para ${bal.tag}!`);
   renderManPend();renderDashboard();
 }
