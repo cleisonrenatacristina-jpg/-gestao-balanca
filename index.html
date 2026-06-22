@@ -1357,33 +1357,78 @@ function renderManPend(){
   const el = document.getElementById('t-man-pend');
   if(!lista.length){el.innerHTML='<p class="empty">Nenhuma ocorrência.</p>';return;}
 
-  el.innerHTML=`<table><thead><tr>
-    <th>TAG</th><th>Quebra</th><th>Setor</th><th>OS</th>
-    <th>Saída</th><th>Orçamento</th><th>Status</th>
-    <th>Retorno</th><th>Ação</th>
+  el.innerHTML=`<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>
+    <th>TAG</th>
+    <th>📦 Registro Almoxarifado</th>
+    <th>OS</th><th>Saída</th><th>Orçamento</th>
+    <th>Status</th><th>Retorno</th><th>Ação</th>
   </tr></thead>
   <tbody>${lista.map(o=>{
     const reinc = isReinc(o);
     const st    = getStatus(o);
     const atrasada = o.previsaoChegada && !o.dataRetorno && o.previsaoChegada < hoje;
-    // Determina qual etapa faz sentido para esta ocorrência
     let proxEtapa = 0, proxLabel = '';
     if(!o.dataRetirada && st!=='DESCARTADO'){proxEtapa=2;proxLabel='📤 Registrar saída';}
     else if(o.dataRetirada && !o.custo && st!=='DESCARTADO'){proxEtapa=3;proxLabel='💰 Orçamento';}
-    else if(o.dataRetirada && !o.dataRetorno && st==='APROVADO'){proxEtapa=4;proxLabel='📥 Registrar retorno';}
     else if(o.dataRetirada && !o.dataRetorno && st!=='DESCARTADO'){proxEtapa=4;proxLabel='📥 Registrar retorno';}
-    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}" style="cursor:${proxEtapa?'pointer':'default'}" onclick="${proxEtapa?`preencherEtapa(${proxEtapa},'${o.id}')`:''}" title="${proxLabel||''}">
-      <td><strong>${nomeBal(o.balancaId)}</strong>${reinc?'<br><span class="tq">⚡&lt;7d</span>':''}</td>
-      <td>${fd(o.dataQuebra)}</td>
-      <td>${o.setor||'—'}</td>
+
+    // Bloco do almoxarifado — mostra tudo que foi registrado
+    const almInfo = [
+      fd(o.dataQuebra),
+      o.turno ? `<span class="badge b-info" style="font-size:.68rem">${o.turno}</span>` : '',
+      o.setor ? `<span style="font-weight:600">${o.setor}</span>` : '',
+    ].filter(Boolean).join(' · ');
+    const problema = o.problemaConstatado
+      ? `<div style="font-size:.74rem;color:#374151;font-style:italic;margin-top:3px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.problemaConstatado}">"${o.problemaConstatado}"</div>`
+      : '';
+
+    // Botão excluir — só para pendentes (sem saída registrada)
+    const btnExcluir = (!o.dataRetirada && !o.dataRetorno)
+      ? `<button onclick="excluirOcManut(event,'${o.id}')"
+           style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:5px;padding:2px 7px;font-size:.7rem;font-weight:700;cursor:pointer;margin-top:4px"
+           title="Excluir este registro">🗑</button>`
+      : '';
+
+    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}"
+        style="cursor:${proxEtapa?'pointer':'default'}"
+        onclick="${proxEtapa?`preencherEtapa(${proxEtapa},'${o.id}')`:''}"
+        title="${proxLabel||''}">
+      <td>
+        <strong>${nomeBal(o.balancaId)}</strong>
+        ${reinc?'<br><span class="tq">⚡&lt;7d</span>':''}
+      </td>
+      <td>
+        <div style="font-size:.78rem">${almInfo}</div>
+        ${problema}
+        ${btnExcluir}
+      </td>
       <td class="os-s">${o.numeroOS||'—'}</td>
       <td>${fd(o.dataRetirada)}</td>
       <td>${o.valorOrcamento?fmt(o.valorOrcamento):'—'}</td>
-      <td>${statusBadge(st)}${atrasada?' <span class="badge b-bad">Atrasada</span>':''}</td>
+      <td>${statusBadge(st)}${atrasada?'<br><span class="badge b-bad" style="font-size:.65rem">Atrasada</span>':''}</td>
       <td>${fd(o.dataRetorno)}</td>
-      <td>${proxEtapa?`<span style="font-size:.74rem;color:var(--p);font-weight:600">${proxLabel}</span>`:'<span style="font-size:.72rem;color:var(--muted)">—</span>'}</td>
+      <td style="white-space:nowrap">
+        ${proxEtapa?`<span style="font-size:.72rem;color:var(--p);font-weight:600">${proxLabel}</span>`
+                   :'<span style="font-size:.7rem;color:var(--muted)">—</span>'}
+      </td>
     </tr>`;
-  }).join('')}</tbody></table>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function excluirOcManut(evt, id){
+  evt.stopPropagation(); // Não acionar o click da linha
+  if(!confirm('Excluir este registro? Ele será removido da manutenção e do almoxarifado.')) return;
+  const oc = ocorrencias.find(o=>o.id===id);
+  // Deleta do Firebase se tiver fbId
+  if(oc && oc.fbId){
+    fetch(`${DB}/ocorrencias/${oc.fbId}.json`, {method:'DELETE'}).catch(()=>{});
+  }
+  // Remove do localStorage
+  ocorrencias = ocorrencias.filter(o=>o.id!==id);
+  salvar();
+  renderManPend();
+  renderDashboard();
+  stepMsg('s1-msg',''); // limpa mensagem das etapas se houver
 }
 
 function selecionarOcMan(id){

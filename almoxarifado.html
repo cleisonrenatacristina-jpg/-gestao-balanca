@@ -182,17 +182,50 @@ async function carregarDados(){
     document.getElementById('st-ag').textContent    = ag;
     document.getElementById('st-aprov').textContent = aprov;
 
-    // Histórico
+    // Histórico com botão excluir
     const hist = document.getElementById('hist');
     if(!ocs.length){ hist.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px">Nenhum registro ainda.</p>'; return; }
     hist.innerHTML = ocs.slice(0,30).map(o=>`
-      <div class="hist-item">
-        <strong>${o.tag}</strong> ${statusBadge(o.status)}
-        <br><span style="color:var(--muted)">${fd(o.dataQuebra)} ${o.turno?'· '+o.turno:''} ${o.setor?'· '+o.setor:''}</span>
-        ${o.problema?`<br><span style="color:#4b5563;font-style:italic">${o.problema}</span>`:''}
-        ${o.custo?`<br><strong style="color:var(--ok)">${fmt(o.custo)}</strong>`:''}
+      <div class="hist-item" style="position:relative">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="flex:1">
+            <strong>${o.tag}</strong> ${statusBadge(o.status)}
+            <br><span style="color:var(--muted);font-size:.78rem">${fd(o.dataQuebra)} ${o.turno?'· '+o.turno:''} ${o.setor?'· <strong>'+o.setor+'</strong>':''}</span>
+            ${o.problema?`<br><span style="color:#4b5563;font-size:.8rem;font-style:italic">"${o.problema}"</span>`:''}
+            ${o.custo?`<br><strong style="color:var(--ok);font-size:.8rem">${fmt(o.custo)}</strong>`:''}
+          </div>
+          ${o.status==='AGUARDANDO'?`
+            <button onclick="excluirOcAlm('${o.id}')"
+              style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0"
+              title="Excluir este registro">
+              🗑 Excluir
+            </button>
+          `:'<span style="font-size:.7rem;color:var(--muted);white-space:nowrap">Em andamento</span>'}
+        </div>
       </div>`).join('');
   } catch(err){ console.error(err); }
+}
+
+async function excluirOcAlm(fbId){
+  if(!confirm('Excluir este registro? Ele será removido do almoxarifado e da manutenção.')) return;
+  try {
+    // 1. Deleta do Firebase
+    await fetch(`${DB}/ocorrencias/${fbId}.json`, {method:'DELETE'});
+
+    // 2. Remove do localStorage compartilhado (mesma origem que index.html)
+    try {
+      const ocs = JSON.parse(localStorage.getItem('gb_oc')||'[]');
+      const novas = ocs.filter(o=>o.fbId!==fbId);
+      if(novas.length !== ocs.length){
+        localStorage.setItem('gb_oc', JSON.stringify(novas));
+      }
+    } catch(e){}
+
+    showMsg('✅ Registro excluído com sucesso!');
+    carregarDados();
+  } catch(e) {
+    showMsg('❌ Erro ao excluir. Tente novamente.','err');
+  }
 }
 
 // Atualiza a cada 30 segundos
