@@ -412,44 +412,54 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 <!-- ═══════════════════ BALANÇAS ═══════════════════ -->
 <div id="page-balancas" class="page cont">
 
-  <!-- Botão IA sempre visível -->
-  <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="color:#fff;font-weight:700;font-size:.95rem">🤖 Análise com Inteligência Artificial</div>
-      <div style="color:rgba(255,255,255,.8);font-size:.78rem;margin-top:2px">Analisa custo x depreciação e recomenda se deve comprar ou manter cada balança</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="varreduraCompleta()" style="background:#fff;color:#4f46e5;border:none;border-radius:7px;padding:9px 16px;font-size:.83rem;font-weight:700;cursor:pointer">🔍 Varredura completa</button>
-      <button onclick="abrirIABal()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:7px;padding:9px 14px;font-size:.8rem;font-weight:600;cursor:pointer">🤖 Analisar balança</button>
-      <button onclick="abrirConfigIA()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:9px 12px;font-size:.78rem;font-weight:600;cursor:pointer">🔑 Chave IA</button>
-    </div>
+  <!-- Barra de ferramentas compacta -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button onclick="varreduraCompleta()" class="btn-ia" style="padding:8px 14px;font-size:.82rem">🔍 Varredura IA</button>
+    <button onclick="abrirConfigIA()" style="background:#ede9fe;color:#5b21b6;border:none;border-radius:7px;padding:8px 13px;font-size:.8rem;font-weight:600;cursor:pointer">🔑 Chave IA</button>
+    <button onclick="toggleFormBal()" style="background:#f3f4f6;color:var(--txt);border:1px solid var(--bdr);border-radius:7px;padding:8px 13px;font-size:.8rem;font-weight:600;cursor:pointer" id="btn-toggle-form">➕ Cadastrar nova balança</button>
+    <span id="bal-count" style="margin-left:auto;font-size:.8rem;color:var(--muted);font-weight:600"></span>
   </div>
-  <!-- Painel de análise IA (alertas automáticos) -->
-  <div id="painel-ia-bal" style="display:none;margin-bottom:16px"></div>
 
-  <div class="g2">
+  <!-- Painel alertas IA (oculto até ter dados) -->
+  <div id="painel-ia-bal" style="display:none;margin-bottom:12px"></div>
+
+  <!-- Formulário colapsável -->
+  <div id="form-bal-wrap" style="display:none;margin-bottom:14px">
     <div class="card">
       <h2>Cadastrar Balança</h2>
       <form id="form-bal">
-        <div><label>TAG *</label><input type="text" id="b-tag" placeholder="Ex: AS-BL-185" required></div>
-        <div class="r2">
+        <div class="r3">
+          <div><label>TAG *</label><input type="text" id="b-tag" placeholder="Ex: AS-BL-185" required></div>
           <div><label>N° de Série</label><input type="text" id="b-serie"></div>
-          <div><label>Modelo</label><input type="text" id="b-modelo"></div>
+          <div><label>Modelo</label><input type="text" id="b-modelo" placeholder="Ex: 9094 PLUS"></div>
+        </div>
+        <div class="r3">
+          <div><label>Marca</label><input type="text" id="b-marca" placeholder="Ex: TOLEDO"></div>
+          <div><label>Cap./Divisão</label><input type="text" id="b-cap"></div>
+          <div><label>Setor / Local</label><input type="text" id="b-setor"></div>
         </div>
         <div class="r2">
-          <div><label>Marca</label><input type="text" id="b-marca"></div>
-          <div><label>Cap./Divisão</label><input type="text" id="b-cap"></div>
+          <div><label>Valor da Balança (R$)</label><input type="number" id="b-valor" min="0" step="0.01" placeholder="Ex: 1200"></div>
+          <div style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-p" style="width:100%">Cadastrar</button>
+          </div>
         </div>
-        <div><label>Setor / Local</label><input type="text" id="b-setor"></div>
-        <div><label>Valor da Balança (R$)</label><input type="number" id="b-valor" min="0" step="0.01"></div>
-        <button type="submit" class="btn btn-p">Cadastrar</button>
       </form>
     </div>
-    <div class="card">
-      <h2>Balanças Cadastradas</h2>
-      <div class="frow"><div class="f"><label>Buscar</label><input type="text" id="fb-busca" placeholder="TAG, modelo, marca..." oninput="renderBalancas()"></div></div>
-      <div id="t-bal"></div>
+  </div>
+
+  <!-- Busca + Tabela full-width -->
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="text" id="fb-busca" placeholder="🔎  Buscar por TAG, modelo ou marca..."
+        oninput="renderBalancas()"
+        style="flex:1;padding:10px 14px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.92rem;background:#f9fafb">
+      <select id="fb-filtro-modelo" onchange="renderBalancas()"
+        style="padding:10px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem;background:#f9fafb;min-width:160px">
+        <option value="">Todos os modelos</option>
+      </select>
     </div>
+    <div id="t-bal"></div>
   </div>
 </div>
 
@@ -1388,57 +1398,85 @@ document.getElementById('rf-mes').addEventListener('change',renderResumo);
 document.getElementById('rf-status').addEventListener('change',renderResumo);
 
 // ── BALANÇAS ──────────────────────────────────────────────────────────────────
+function toggleFormBal(){
+  const w=document.getElementById('form-bal-wrap');
+  const btn=document.getElementById('btn-toggle-form');
+  const vis=w.style.display!=='none';
+  w.style.display=vis?'none':'block';
+  btn.textContent=vis?'➕ Cadastrar nova balança':'✖ Fechar cadastro';
+}
+
 function renderBalancas(){
   renderPainelIA();
-  const busca=(document.getElementById('fb-busca').value||'').toLowerCase();
+  const busca  =(document.getElementById('fb-busca').value||'').toLowerCase();
+  const fModelo=(document.getElementById('fb-filtro-modelo')||{value:''}).value;
   let lista=[...balancas].sort((a,b)=>a.tag.localeCompare(b.tag));
-  if(busca)lista=lista.filter(b=>b.tag.toLowerCase().includes(busca)||(b.modelo||'').toLowerCase().includes(busca)||(b.marca||'').toLowerCase().includes(busca));
+  if(busca)   lista=lista.filter(b=>b.tag.toLowerCase().includes(busca)||(b.modelo||'').toLowerCase().includes(busca)||(b.marca||'').toLowerCase().includes(busca)||(b.setor||'').toLowerCase().includes(busca));
+  if(fModelo) lista=lista.filter(b=>(b.modelo||'').toUpperCase().includes(fModelo));
+
+  // Preenche o select de modelos (só na primeira vez ou quando vazio)
+  const sel=document.getElementById('fb-filtro-modelo');
+  if(sel&&sel.options.length<=1){
+    const modelos=[...new Set(balancas.map(b=>b.modelo).filter(Boolean))].sort();
+    sel.innerHTML='<option value="">Todos os modelos</option>'+modelos.map(m=>`<option value="${m}">${m}</option>`).join('');
+    if(fModelo)sel.value=fModelo;
+  }
+
+  // Contador
+  const cnt=document.getElementById('bal-count');
+  if(cnt) cnt.textContent=`${lista.length} de ${balancas.length} balanças`;
+
   const el=document.getElementById('t-bal');
-  if(!lista.length){el.innerHTML='<p class="empty">Nenhuma balança.</p>';return;}
-  el.innerHTML=`<table><thead><tr><th>TAG</th><th>Série</th><th>Modelo</th><th>Marca</th><th>Cap.</th><th>Valor Aquisição (R$)</th><th>Data Aquisição</th><th>Custo ${new Date().getFullYear()}</th><th>Meta 40%</th><th>Deprec.</th><th></th></tr></thead>
+  if(!lista.length){el.innerHTML='<p class="empty">Nenhuma balança encontrada.</p>';return;}
+
+  const ano=new Date().getFullYear().toString();
+  el.innerHTML=`<div style="overflow-x:auto"><table style="min-width:700px"><thead><tr>
+    <th>TAG</th><th>Modelo / Marca</th><th>Setor</th>
+    <th>Valor (R$)</th><th>Custo ${ano}</th><th>Meta 40%</th><th>Deprec.</th><th>Ações</th>
+  </tr></thead>
   <tbody>${lista.map(b=>{
-    const ocs=ocorrencias.filter(o=>o.balancaId===b.id);
-    const st=statusCusto(b);
+    const st  =statusCusto(b);
     const depr=analisarDepr(b);
     const barW=b.valor?Math.min(st.pct*100,100).toFixed(0):0;
+    const alertIcon=st.nivel==='crit'?'🚨':st.nivel==='warn'?'⚠️':'';
     return`<tr>
-    <td><strong>${b.tag}</strong>${b.setor?`<br><small style="color:var(--muted)">${b.setor}</small>`:''}</td>
-    <td style="color:var(--muted);font-size:.75rem">${b.serie||'—'}</td>
-    <td>${b.modelo||'—'}</td>
-    <td>${b.marca||'—'}</td>
-    <td>${b.capDiv||'—'}</td>
-    <td>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="color:var(--muted);font-size:.75rem">R$</span>
-        <input type="number" min="0" step="0.01"
-          value="${b.valor||''}" placeholder="0,00"
-          style="width:90px;padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.8rem;background:#f9fafb"
-          onchange="salvarValorBal('${b.id}',this.value)"
-          onfocus="this.style.borderColor='var(--p)';this.style.background='#fff'"
-          onblur="this.style.borderColor='var(--bdr)';this.style.background='#f9fafb'">
-      </div>
-    </td>
-    <td>
-      <input type="date" value="${b.dataAquisicao||''}"
-        style="padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.78rem;background:#f9fafb;width:130px"
-        onchange="salvarDataAqBal('${b.id}',this.value)"
-        onfocus="this.style.borderColor='var(--p)'"
-        onblur="this.style.borderColor='var(--bdr)'">
-    </td>
-    <td>${b.valor?`<strong style="color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'inherit'}">${fmt(st.custo)}</strong>`:'—'}</td>
-    <td style="min-width:100px">
-      ${b.valor?`
-        <div class="custo-bar-wrap"><div class="custo-bar custo-${st.nivel}" style="width:${barW}%"></div></div>
-        <div style="font-size:.72rem;color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'var(--ok)'}">${(st.pct*100).toFixed(0)}% ${st.nivel==='crit'?'🚨':st.nivel==='warn'?'⚠️':'✅'}</div>
-      `:'<span style="color:var(--muted);font-size:.75rem">Sem valor</span>'}
-    </td>
-    <td>${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}">${depr.depreciada?'Sim':'Não ('+depr.pctDepr.toFixed(0)+'%)'}</span>`:'—'}</td>
-    <td class="actions">
-      ${(st.nivel==='warn'||st.nivel==='crit')?`<button class="btn-ia" onclick="abrirIA('${b.id}')">🤖 IA</button>`:''}
-      <button class="btn btn-o btn-sm" onclick="abrirEBal('${b.id}')">✏️</button>
-      <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
-    </td></tr>`;
-  }).join('')}</tbody></table>`;
+      <td>
+        <strong style="font-size:.9rem">${b.tag}</strong>
+        <div style="font-size:.7rem;color:var(--muted)">${b.serie||''}</div>
+      </td>
+      <td>
+        <div style="font-weight:600">${b.modelo||'—'}</div>
+        <div style="font-size:.75rem;color:var(--muted)">${b.marca||''} ${b.capDiv?'· '+b.capDiv:''}</div>
+      </td>
+      <td style="font-size:.82rem">${b.setor||'—'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:3px">
+          <span style="color:var(--muted);font-size:.72rem">R$</span>
+          <input type="number" min="0" step="0.01" value="${b.valor||''}" placeholder="—"
+            style="width:80px;padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.82rem;background:#f9fafb"
+            onchange="salvarValorBal('${b.id}',this.value)"
+            onfocus="this.style.borderColor='var(--p)';this.style.background='#fff'"
+            onblur="this.style.borderColor='var(--bdr)';this.style.background='#f9fafb'">
+        </div>
+        <input type="date" value="${b.dataAquisicao||''}" title="Data de aquisição"
+          style="padding:3px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.72rem;background:#f9fafb;width:120px;margin-top:4px;display:block"
+          onchange="salvarDataAqBal('${b.id}',this.value)">
+      </td>
+      <td style="font-size:.82rem">${b.valor?`<strong style="color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'inherit'}">${fmt(st.custo)}</strong>`:'—'}</td>
+      <td style="min-width:90px">
+        ${b.valor?`
+          <div class="custo-bar-wrap"><div class="custo-bar custo-${st.nivel}" style="width:${barW}%"></div></div>
+          <div style="font-size:.7rem;color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'var(--ok)'};margin-top:2px">${(st.pct*100).toFixed(0)}% ${alertIcon}</div>
+        `:'<span style="font-size:.72rem;color:var(--muted)">Sem valor</span>'}
+      </td>
+      <td>${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}" style="font-size:.7rem">${depr.depreciada?'Deprec.':'Em uso'}</span>`:'—'}</td>
+      <td class="actions">
+        <button class="btn-ia" onclick="abrirIA('${b.id}')" title="Análise IA" style="padding:5px 9px;font-size:.75rem">🤖</button>
+        <button class="btn btn-o btn-sm" onclick="abrirEBal('${b.id}')">✏️</button>
+        <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
 }
 
 // ── VARREDURA COMPLETA IA ─────────────────────────────────────────────────────
@@ -1601,12 +1639,8 @@ function exportarVarredura(){
 }
 
 function abrirIABal(){
-  // Pede a TAG ao usuário e abre a análise IA
-  const tag = prompt('Digite a TAG da balança para analisar:\n(Ex: AS-BL-185)');
-  if(!tag) return;
-  const bal = findBal(tag);
-  if(!bal){ alert('TAG não encontrada. Verifique e tente novamente.'); return; }
-  abrirIA(bal.id);
+  // Agora o botão 🤖 fica direto em cada linha da tabela - esta função não é mais usada
+  alert('Clique no botão 🤖 na linha da balança que deseja analisar.');
 }
 
 // Sincronização imediata do Firebase
