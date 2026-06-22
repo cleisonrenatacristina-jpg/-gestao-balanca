@@ -102,6 +102,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 <header>
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
   <div><h1>Gestão de Balanças</h1><span>LivUp — Controle de manutenção</span></div>
+  <button onclick="abrirConfigIA()" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:600">🔑 Chave IA</button>
 </header>
 <nav>
   <button class="active" onclick="goPage('dashboard',this)">📊 Dashboard</button>
@@ -396,6 +397,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 
 <!-- ═══════════════════ BALANÇAS ═══════════════════ -->
 <div id="page-balancas" class="page cont">
+
+  <!-- Painel de análise IA -->
+  <div id="painel-ia-bal" style="display:none;margin-bottom:16px"></div>
+
   <div class="g2">
     <div class="card">
       <h2>Cadastrar Balança</h2>
@@ -437,6 +442,32 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <div id="res-rel"></div>
 </div>
 
+
+<!-- MODAL CONFIG CHAVE IA -->
+<div class="modal-ov" id="m-cfg-ia">
+  <div class="modal" style="max-width:480px">
+    <h3>🔑 Configurar Chave da API — Claude IA</h3>
+    <p style="font-size:.84rem;color:var(--muted);margin-bottom:16px">
+      Para usar a análise com Inteligência Artificial, você precisa de uma chave da API do Claude (Anthropic).<br>
+      Acesse <strong>console.anthropic.com</strong> → API Keys → Create Key.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label style="font-size:.8rem;font-weight:600;color:var(--muted)">Sua chave API (começa com sk-ant-...)</label>
+        <input type="password" id="cfg-ia-key" placeholder="sk-ant-api03-..."
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.9rem;margin-top:4px">
+      </div>
+      <div id="cfg-key-status" style="font-size:.82rem;padding:8px 12px;border-radius:7px;display:none"></div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-o" onclick="fecharM('m-cfg-ia')">Fechar</button>
+      <button class="btn btn-p" onclick="salvarConfigKey()">💾 Salvar chave</button>
+    </div>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:12px">
+      🔒 A chave fica salva apenas no seu navegador (localStorage). Nunca é enviada a nenhum servidor nosso.
+    </p>
+  </div>
+</div>
 
 <!-- MODAL ANÁLISE IA -->
 <div class="modal-ov" id="m-ia">
@@ -1279,6 +1310,7 @@ document.getElementById('rf-status').addEventListener('change',renderResumo);
 
 // ── BALANÇAS ──────────────────────────────────────────────────────────────────
 function renderBalancas(){
+  renderPainelIA();
   const busca=(document.getElementById('fb-busca').value||'').toLowerCase();
   let lista=[...balancas].sort((a,b)=>a.tag.localeCompare(b.tag));
   if(busca)lista=lista.filter(b=>b.tag.toLowerCase().includes(busca)||(b.modelo||'').toLowerCase().includes(busca)||(b.marca||'').toLowerCase().includes(busca));
@@ -1328,6 +1360,72 @@ function renderBalancas(){
       <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
     </td></tr>`;
   }).join('')}</tbody></table>`;
+}
+
+function abrirConfigIA(){
+  const key = localStorage.getItem('claude_api_key')||'';
+  document.getElementById('cfg-ia-key').value = key;
+  const st = document.getElementById('cfg-key-status');
+  if(key){ st.style.display='block'; st.style.background='#def7ec'; st.style.color='#065f46'; st.textContent='✅ Chave já configurada. Pode alterar abaixo.'; }
+  else { st.style.display='none'; }
+  document.getElementById('m-cfg-ia').classList.add('open');
+}
+
+function salvarConfigKey(){
+  const key = document.getElementById('cfg-ia-key').value.trim();
+  if(!key){ alert('Cole sua chave API antes de salvar.'); return; }
+  localStorage.setItem('claude_api_key', key);
+  const st = document.getElementById('cfg-key-status');
+  st.style.display='block'; st.style.background='#def7ec'; st.style.color='#065f46';
+  st.textContent='✅ Chave salva com sucesso! Agora clique em 🤖 IA em qualquer balança no alerta.';
+  // Também salva no campo do modal IA
+  const iaKey = document.getElementById('ia-key');
+  if(iaKey) iaKey.value = key;
+  setTimeout(()=>fecharM('m-cfg-ia'), 1500);
+}
+
+function renderPainelIA(){
+  const el = document.getElementById('painel-ia-bal');
+  if(!el) return;
+  const key = localStorage.getItem('claude_api_key')||'';
+  const alertas = balancas
+    .map(b=>({b, st:statusCusto(b)}))
+    .filter(x=>x.st.nivel==='warn'||x.st.nivel==='crit')
+    .sort((a,b)=>b.st.pct-a.st.pct);
+
+  if(!alertas.length && !key){
+    el.style.display='none'; return;
+  }
+
+  let html = '';
+  if(!key){
+    html = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:1.5rem">🔑</span>
+      <div>
+        <strong style="font-size:.9rem">Configure a Chave IA para análise automática</strong>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Clique em <strong>"🔑 Chave IA"</strong> no canto superior direito do app para cadastrar sua chave do Claude.</div>
+      </div>
+      <button onclick="abrirConfigIA()" style="margin-left:auto;background:#1a56db;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap">🔑 Configurar agora</button>
+    </div>`;
+  } else if(alertas.length){
+    html = `<div class="alert-meta">
+      <h3>⚠️ ${alertas.length} balança(s) acima de 40% do valor de aquisição — clique em 🤖 IA para análise</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${alertas.map(({b,st})=>`
+          <button onclick="abrirIA('${b.id}')" style="background:${st.nivel==='crit'?'#fde8e8':'#fef3c7'};border:1px solid ${st.nivel==='crit'?'#fca5a5':'#fcd34d'};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:.82rem;text-align:left">
+            <strong>${b.tag}</strong> ${st.nivel==='crit'?'🚨':'⚠️'}<br>
+            <span style="font-size:.75rem;color:var(--muted)">${(st.pct*100).toFixed(0)}% — ${fmt(st.custo)} gasto</span><br>
+            <span style="font-size:.72rem;color:#1a56db">🤖 Clique para análise IA</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+  } else {
+    html = `<div style="background:#def7ec;border:1px solid #86efac;border-radius:10px;padding:12px;font-size:.83rem;color:var(--ok)">
+      ✅ Chave IA configurada. Nenhuma balança em alerta de custo no momento.
+    </div>`;
+  }
+  el.innerHTML = html;
+  el.style.display = 'block';
 }
 
 function salvarValorBal(id, val){
