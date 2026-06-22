@@ -918,32 +918,17 @@ function detectReinc(balId,dataQ,ignId=null){
 }
 function isReinc(o){return!!detectReinc(o.balancaId,o.dataQuebra,o.id);}
 
-// ── FORMULÁRIO ALMOXARIFADO ───────────────────────────────────────────────────
-document.getElementById('a-bal').addEventListener('change',chkReinc);
-document.getElementById('a-quebra').addEventListener('change',chkReinc);
+// ── FORMULÁRIO ALMOXARIFADO (listeners só se elementos existirem) ─────────────
 function chkReinc(){
-  const bid=document.getElementById('a-bal').value;
-  const dq=document.getElementById('a-quebra').value;
+  const bid=document.getElementById('a-bal')?.value;
+  const dq=document.getElementById('a-quebra')?.value;
   const el=document.getElementById('aviso-reinc');
-  if(!bid||!dq){el.style.display='none';return;}
+  if(!el||!bid||!dq){if(el)el.style.display='none';return;}
   const r=detectReinc(bid,dq);
-  if(r){document.getElementById('aviso-txt').textContent=`Esta balança voltou do conserto em ${fd(r.oc.dataRetorno)} e quebrou novamente em ${r.dias} dia(s)!`;el.style.display='flex';}
+  if(r){const t=document.getElementById('aviso-txt');if(t)t.textContent=`Esta balança voltou do conserto em ${fd(r.oc.dataRetorno)} e quebrou novamente em ${r.dias} dia(s)!`;el.style.display='flex';}
   else el.style.display='none';
 }
-document.getElementById('form-alm').addEventListener('submit',function(e){
-  e.preventDefault();
-  ocorrencias.push({
-    id:uid(),balancaId:document.getElementById('a-bal').value,
-    numeroOS:'',dataQuebra:document.getElementById('a-quebra').value,
-    turno:document.getElementById('a-turno').value,
-    setor:document.getElementById('a-setor').value.trim(),
-    problemaConstatado:document.getElementById('a-problema').value.trim(),
-    dataRetirada:null,dataAprovacao:null,status:'AGUARDANDO APROVAÇÃO',
-    aprovadoPor:'',dataRetorno:null,custo:0,descartado:false,quemDescartou:'',dataDescarte:null,capDiv:'',obs:''
-  });
-  salvar();this.reset();document.getElementById('aviso-reinc').style.display='none';
-  renderAll();alert('Entrada registrada pelo almoxarifado!');
-});
+// form-alm foi substituído pelas etapas numeradas (step1Salvar) — listener removido
 
 // ── FORMULÁRIO BALANÇA ────────────────────────────────────────────────────────
 document.getElementById('form-bal').addEventListener('submit',function(e){
@@ -1014,10 +999,8 @@ function renderDashboard(){
   const pend=ocorrencias.filter(o=>getStatus(o)==='PENDENTE').length;
   if(pend){alertEl.innerHTML+=`<div class="alert al-w">⏳ <strong>${pend} ocorrência(s) pendente(s)</strong> aguardam preenchimento pela Manutenção (sem N° O.S. ainda).</div>`;}
 
-  // Gráfico quebras: usa últimos 6 meses (mais dados visíveis)
-  const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
+  // Gráficos
   const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
-  // Usa TODOS os dados para o gráfico de quebras por balança (não só o mês)
   ocorrencias.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
   const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
   mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
@@ -1027,8 +1010,8 @@ function renderDashboard(){
   const dC=Object.values(cBal).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,15);
   mkChart('cC','bar',dC.map(x=>x.tag),[{label:'Custo',data:dC.map(x=>x.c),backgroundColor:'#057a55',borderRadius:5}],true);
 
-  const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
-  mkChart('cH','line',m6.map(nomeMes),[{label:'Quebras',data:m6.map(m=>ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(m)).length),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.1)',fill:true,tension:.3,pointRadius:5}]);
+  const m6dash=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6dash.push(d.toISOString().slice(0,7));}
+  mkChart('cH','line',m6dash.map(nomeMes),[{label:'Quebras',data:m6dash.map(m=>ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(m)).length),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.1)',fill:true,tension:.3,pointRadius:5}]);
 
   // tabela reincidências
   const el=document.getElementById('t-reinc');
@@ -1040,9 +1023,12 @@ function renderDashboard(){
   }).join('')}</tbody></table>`;
 
   // descartadas
+  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
   const dd=document.getElementById('t-descartadas-dash');
-  if(!descs.length){dd.innerHTML='<p class="empty">Nenhuma balança descartada.</p>';}
-  else dd.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px">${descs.map(o=>`<div class="disc-chip">🗑 ${nomeBal(o.balancaId)}${o.quemDescartou?' · '+o.quemDescartou:''}</div>`).join('')}</div>`;
+  if(dd){
+    if(!descs.length){dd.innerHTML='<p class="empty">Nenhuma balança descartada.</p>';}
+    else dd.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px">${descs.map(o=>`<div class="disc-chip">🗑 ${nomeBal(o.balancaId)}${o.quemDescartou?' · '+o.quemDescartou:''}</div>`).join('')}</div>`;
+  }
 }
 
 function mkChart(id,type,labels,datasets,isMoeda=false){
@@ -1253,53 +1239,8 @@ function toggleDescForm(){
   document.getElementById('bloco-desc-form').style.display = s==='DESCARTADO'?'block':'none';
 }
 
-document.getElementById('form-man').addEventListener('submit',function(e){
-  e.preventDefault();
-  const fBal = document.getElementById('mf-bal').value;
-
-  // Se não há ocorrência existente, cria uma nova
-  if(!editManId){
-    if(!fBal){ alert('Selecione uma TAG primeiro.'); return; }
-    const novaOc = {
-      id:uid(), balancaId:fBal,
-      numeroOS:'', dataQuebra:'', turno:'', setor:'',
-      problemaConstatado:'Registrado pela manutenção (sem romaneio)',
-      dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
-      status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'',
-      dataRetorno:null, custo:0,
-      descartado:false, quemDescartou:'', dataDescarte:null,
-      capDiv:'', obs:'', valorOrcamento:0, qtdOrcamento:0,
-      quemAcompanhouTeste:'', quemValidou:''
-    };
-    ocorrencias.push(novaOc);
-    editManId = novaOc.id;
-  }
-  const o = ocorrencias.find(x=>x.id===editManId);
-  // Etapa 1
-  o.numeroOS        = document.getElementById('m-os').value.trim();
-  o.dataRetirada    = document.getElementById('m-saida').value||null;
-  // Etapa 2
-  o.valorOrcamento  = parseFloat(document.getElementById('m-orcamento').value)||0;
-  o.qtdOrcamento    = parseInt(document.getElementById('m-qtd-orcamento').value)||0;
-  // Etapa 3
-  o.status          = document.getElementById('m-status').value;
-  o.custo           = parseFloat(document.getElementById('m-custo').value)||0;
-  o.aprovadoPor     = document.getElementById('m-aprovador').value;
-  o.dataAprovacao   = document.getElementById('m-aprov-data').value||null;
-  o.quemDescartou   = document.getElementById('m-q-desc').value;
-  o.dataDescarte    = document.getElementById('m-data-desc').value||null;
-  if(o.status==='DESCARTADO') o.descartado=true;
-  // Etapa 4
-  o.previsaoChegada     = document.getElementById('m-previsao').value||null;
-  o.dataRetorno         = document.getElementById('m-retorno').value||null;
-  o.quemAcompanhouTeste = document.getElementById('m-acomp-teste').value.trim();
-  o.quemValidou         = document.getElementById('m-validou').value.trim();
-  o.obs                 = document.getElementById('m-obs').value.trim();
-  salvar();
-  renderManOcSelect();
-  renderManPend();
-  alert('Dados da manutenção salvos!');
-});
+// form-man foi substituído pelas 5 etapas numeradas (step1Salvar...step5Salvar)
+// Listener removido — não há mais <form id="form-man"> no HTML
 
 function renderManPend(){
   const fMes  = document.getElementById('mf-mes').value;
