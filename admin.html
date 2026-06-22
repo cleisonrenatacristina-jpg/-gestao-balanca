@@ -321,6 +321,17 @@ const PLANILHA=[
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function initDados(){
+  // Tenta usar o mesmo localStorage da manutenção (mesma origem/domínio)
+  try {
+    const bal = JSON.parse(localStorage.getItem('gb_bal')||'null');
+    const oc  = JSON.parse(localStorage.getItem('gb_oc')||'null');
+    if(bal && Array.isArray(bal) && bal.length >= 90
+    && oc  && Array.isArray(oc)  && oc.length  >= 100) {
+      return {bal, oc}; // Usa os mesmos dados da manutenção
+    }
+  } catch(e) {}
+
+  // Fallback: lê direto do PLANILHA
   const tagMap={};
   PLANILHA.forEach(r=>{
     const t=r[0];if(!t||t==='AS-BL-')return;

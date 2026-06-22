@@ -801,21 +801,45 @@ function importarPlanilha(){
 }
 
 function init() {
-  // Se versão diferente, reimporta planilha (preserva valores de balanças editados)
-  const ver = localStorage.getItem('gb_ver');
-  if(ver !== DATA_VERSION){
-    const balAntigo = JSON.parse(localStorage.getItem('gb_bal')||'[]');
-    const valorSalvo = {}; // preserva valores que o usuário já digitou
-    balAntigo.forEach(b=>{ if(b.valor) valorSalvo[b.tag]=b.valor; });
+  try {
+    const ver = localStorage.getItem('gb_ver');
+    const bal = JSON.parse(localStorage.getItem('gb_bal')||'null');
+    const oc  = JSON.parse(localStorage.getItem('gb_oc')||'null');
+
+    // Dados válidos: versão correta + mínimo 90 balanças (PLANILHA tem 97) + mínimo 100 ocorrências
+    if(ver === DATA_VERSION && bal && Array.isArray(bal) && bal.length >= 90
+       && oc && Array.isArray(oc) && oc.length >= 100) {
+      return {bal, oc};
+    }
+
+    // Dados insuficientes ou versão errada → reimporta preservando edições do usuário
+    const valorSalvo = {}, dateSalvo = {};
+    if(bal && Array.isArray(bal)) {
+      bal.forEach(b=>{
+        if(b.valor)         valorSalvo[b.tag] = b.valor;
+        if(b.dataAquisicao) dateSalvo[b.tag]  = b.dataAquisicao;
+      });
+    }
     const result = importarPlanilha();
-    result.bal.forEach(b=>{ if(valorSalvo[b.tag]) b.valor=valorSalvo[b.tag]; });
-    localStorage.setItem('gb_bal',JSON.stringify(result.bal));
+    result.bal.forEach(b=>{
+      if(valorSalvo[b.tag]) b.valor         = valorSalvo[b.tag];
+      if(dateSalvo[b.tag])  b.dataAquisicao = dateSalvo[b.tag];
+    });
+    // Preserva ocorrências extras do almoxarifado (com fbId) que não estão na planilha
+    if(oc && Array.isArray(oc) && oc.length > 0) {
+      const planilhaOsSet = new Set(result.oc.map(o=>o.numeroOS).filter(Boolean));
+      oc.filter(o=>o.fbId && !result.oc.find(p=>p.fbId===o.fbId))
+        .forEach(o=>result.oc.push(o));
+    }
+    localStorage.setItem('gb_bal', JSON.stringify(result.bal));
+    localStorage.setItem('gb_oc',  JSON.stringify(result.oc));
+    localStorage.setItem('gb_ver', DATA_VERSION);
     return result;
+  } catch(e) {
+    // Qualquer erro → reimporta direto da planilha
+    console.warn('init() error, reimporting:', e);
+    return importarPlanilha();
   }
-  const bal = JSON.parse(localStorage.getItem('gb_bal')||'null');
-  const oc  = JSON.parse(localStorage.getItem('gb_oc')||'null');
-  if(!bal||!oc) return importarPlanilha();
-  return {bal,oc};
 }
 
 let {bal:balancas,oc:ocorrencias}=init();
@@ -823,7 +847,12 @@ aplicarPrecosMercado();
 let editManId=null, editBalId=null;
 const charts={};
 
-function salvar(){localStorage.setItem('gb_bal',JSON.stringify(balancas));localStorage.setItem('gb_oc',JSON.stringify(ocorrencias));}
+function salvar(){
+  if(!balancas.length) return; // Proteção: nunca salva arrays vazios
+  localStorage.setItem('gb_bal',JSON.stringify(balancas));
+  localStorage.setItem('gb_oc',JSON.stringify(ocorrencias));
+  localStorage.setItem('gb_ver',DATA_VERSION);
+}
 
 // Migração de preços — aplica valores de mercado por modelo
 function aplicarPrecosMercado(){
