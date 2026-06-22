@@ -2292,25 +2292,50 @@ function renderAlertasMeta(){
     .filter(x=>x.st.nivel==='warn'||x.st.nivel==='crit')
     .sort((a,b)=>b.st.pct-a.st.pct);
   if(!alertas.length){el.innerHTML='';return;}
-  el.innerHTML=`<div class="alert-meta">
-    <h3>⚠️ ${alertas.length} balança(s) com custo de manutenção elevado em ${new Date().getFullYear()}</h3>
-    ${alertas.map(({b,st,depr})=>`
-    <div class="meta-item ${st.nivel}" onclick="abrirIA('${b.id}')">
-      <div>
-        <strong>${b.tag}</strong>
-        <span style="margin-left:8px;font-size:.78rem;color:var(--muted)">${b.modelo||''} ${b.marca||''}</span>
-        ${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}" style="margin-left:6px">${depr.depreciada?'Depreciada':'Em uso'}</span>`:''}
-      </div>
-      <div style="text-align:right">
-        <div><strong>${fmt(st.custo)}</strong> <span style="color:var(--muted);font-size:.76rem">/ ${fmt(b.valor)}</span></div>
-        <div class="custo-bar-wrap" style="width:120px;display:inline-block">
-          <div class="custo-bar custo-${st.nivel}" style="width:${Math.min(st.pct*100,100).toFixed(0)}%"></div>
+
+  const aberto = localStorage.getItem('gb_alerta_aberto') !== 'false'; // padrão fechado se nunca clicou
+
+  el.innerHTML=`<div class="alert-meta" style="padding:0;overflow:hidden">
+    <!-- Cabeçalho clicável -->
+    <div onclick="toggleAlertasMeta()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none">
+      <h3 style="margin:0;font-size:.88rem">
+        ⚠️ ${alertas.length} balança(s) com custo elevado em ${new Date().getFullYear()}
+        <span style="margin-left:8px;font-size:.75rem;font-weight:400;color:#92400e">— clique para ${aberto?'ocultar':'ver'}</span>
+      </h3>
+      <span id="alerta-chevron" style="font-size:1rem;color:#92400e;transition:transform .2s;transform:rotate(${aberto?'0':'180deg'})"
+      >▲</span>
+    </div>
+    <!-- Lista colapsável -->
+    <div id="alerta-lista" style="display:${aberto?'block':'none'};padding:0 16px 12px">
+      ${alertas.map(({b,st,depr})=>`
+      <div class="meta-item ${st.nivel}" onclick="abrirIA('${b.id}')">
+        <div>
+          <strong>${b.tag}</strong>
+          <span style="margin-left:8px;font-size:.78rem;color:var(--muted)">${b.modelo||''} ${b.marca||''}</span>
+          ${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}" style="margin-left:6px">${depr.depreciada?'Deprec.':'Em uso'}</span>`:''}
         </div>
-        <div style="font-size:.72rem;color:${st.nivel==='crit'?'var(--danger)':'#92400e'}">${(st.pct*100).toFixed(0)}% do valor</div>
-        <div style="font-size:.7rem;color:var(--p);margin-top:2px">🤖 Clique para analisar</div>
-      </div>
-    </div>`).join('')}
+        <div style="text-align:right">
+          <div><strong>${fmt(st.custo)}</strong> <span style="color:var(--muted);font-size:.76rem">/ ${fmt(b.valor)}</span></div>
+          <div class="custo-bar-wrap" style="width:100px;display:inline-block">
+            <div class="custo-bar custo-${st.nivel}" style="width:${Math.min(st.pct*100,100).toFixed(0)}%"></div>
+          </div>
+          <div style="font-size:.7rem;color:${st.nivel==='crit'?'var(--danger)':'#92400e'}">${(st.pct*100).toFixed(0)}% 🤖</div>
+        </div>
+      </div>`).join('')}
+    </div>
   </div>`;
+}
+
+function toggleAlertasMeta(){
+  const lista   = document.getElementById('alerta-lista');
+  const chevron = document.getElementById('alerta-chevron');
+  const aberto  = lista.style.display !== 'none';
+  lista.style.display  = aberto ? 'none' : 'block';
+  chevron.style.transform = aberto ? 'rotate(180deg)' : 'rotate(0deg)';
+  // Atualiza texto
+  const h3 = lista.closest('.alert-meta').querySelector('h3 span');
+  if(h3) h3.textContent = `— clique para ${aberto?'ver':'ocultar'}`;
+  localStorage.setItem('gb_alerta_aberto', String(!aberto));
 }
 
 // ── MODAL IA ──────────────────────────────────────────────────────────────────
