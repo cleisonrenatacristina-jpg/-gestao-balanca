@@ -60,6 +60,25 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 .tq{font-size:.67rem;background:#fde8e8;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700;white-space:nowrap}
 .hl td{background:#fff5f5!important}
 .hl2 td{background:#fdf4ff!important}
+/* Relatório IA */
+.vr-section{border-radius:10px;padding:16px;margin-bottom:16px;page-break-inside:avoid}
+.vr-section h3{font-size:.88rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.vr-section table{width:100%;border-collapse:collapse;font-size:.82rem}
+.vr-section th{padding:8px 10px;text-align:left;font-weight:700;border-bottom:2px solid rgba(0,0,0,.1)}
+.vr-section td{padding:8px 10px;border-bottom:1px solid rgba(0,0,0,.07);vertical-align:top}
+.vr-desc{background:#ff4444;color:#991b1b}.vr-sub{background:#fff1f2;color:#c2410c}
+.vr-mon{background:#fffbeb;color:#92400e}.vr-ok{background:#f0fdf4;color:#166534}
+.vr-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
+.vr-compra{background:#dcfce7;color:#166534}.vr-avaliar{background:#e0f2fe;color:#0369a1}
+@media print{
+  header,nav,#btn-toggle-form,.frow,.actions,.btn,.btn-ia,.painel-card,#alertas,#alertas-meta,#painel-ia-bal,.stat-card button{display:none!important}
+  .page{display:none!important}
+  #page-varredura-rep{display:block!important;padding:0!important}
+  body{background:#fff!important;font-size:11pt}
+  .vr-section{border:1px solid #ddd!important;margin-bottom:12px}
+  .cont{max-width:none;padding:0}
+  #vr-header-print{display:block!important}
+}
 /* Análise de custo */
 .custo-bar-wrap{width:100%;background:#e5e7eb;border-radius:20px;height:8px;margin:4px 0}
 .custo-bar{height:8px;border-radius:20px;transition:width .4s}
@@ -130,6 +149,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <button onclick="goPage('ocorrencias',this)">📋 Ocorrências</button>
   <button onclick="goPage('balancas',this)">⚖️ Balanças</button>
   <button onclick="goPage('relatorio',this)">📁 Relatório</button>
+  <button onclick="goPage('varredura-rep',this)" id="nav-varredura-rep" style="display:none">🤖 Relatório IA</button>
 </nav>
 
 <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
@@ -411,6 +431,24 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <input type="hidden" id="a-setor"><input type="hidden" id="a-problema">
   <input type="hidden" id="aviso-reinc"><input type="hidden" id="aviso-txt">
 
+</div>
+
+<!-- ═══════════════════ RELATÓRIO IA ═══════════════════ -->
+<div id="page-varredura-rep" class="page cont">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div>
+      <h2 style="font-size:1.1rem;color:var(--pd)">🤖 Relatório de Varredura IA</h2>
+      <div id="vr-meta" style="font-size:.8rem;color:var(--muted);margin-top:2px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="imprimirRelatorioIA()" class="btn btn-p" style="background:#4f46e5">🖨️ Imprimir</button>
+      <button onclick="exportarRelatorioIA()" class="btn btn-o">📥 Exportar PDF</button>
+      <button onclick="varreduraCompleta()" class="btn btn-o" style="font-size:.8rem">🔄 Nova varredura</button>
+    </div>
+  </div>
+  <div id="vr-conteudo">
+    <div class="empty">Nenhuma varredura realizada ainda.<br>Vá em <strong>⚖️ Balanças → 🔍 Varredura IA</strong> para gerar o relatório.</div>
+  </div>
 </div>
 
 <!-- ═══════════════════ BALANÇAS ═══════════════════ -->
@@ -901,6 +939,11 @@ function goPage(id,btn){
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
   renderAll();
+  // Se entrou na aba de relatório IA, renderiza dados salvos
+  if(id==='varredura-rep' && window._savedVarredura){
+    renderRelatorioIA(window._savedVarredura.resultado, window._savedVarredura.total);
+    window._savedVarredura=null; // Renderiza só uma vez ao entrar
+  }
 }
 function goStab(id,btn){
   document.querySelectorAll('.stab-page').forEach(p=>p.classList.remove('active'));
@@ -1635,28 +1678,32 @@ RETORNE SOMENTE este JSON (sem markdown, sem explicações):
         ${itens.map(renderFn).join('')}
       </div>`:'';
 
-    const okList = (r.ok||[]);
     const uso = data.usage;
-    document.getElementById('varredura-corpo').innerHTML=`
-      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-size:.78rem">
-        <span style="color:var(--ok);font-weight:700">✅ ${dados.length} balanças analisadas</span>
-        <span style="color:var(--muted)">${uso?.input_tokens||'?'} tokens</span>
-      </div>
+    // Salva resultado e gera relatório estruturado
+    localStorage.setItem('gb_varredura', JSON.stringify({resultado:r, data:new Date().toISOString(), total:dados.length}));
+    window._ultimaVarredura = texto;
 
-      ${sec('🗑️ DESCARTAR — Não vale mais consertar','#fde8e8','#991b1b',r.descartar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
-      ${sec('🔴 SUBSTITUIR — Custo muito elevado','#fff1f2','#c2410c',r.substituir||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)',x.acao,x.motivo))}
-      ${sec('⚠️ MONITORAR — Acompanhar de perto','#fffbeb','#92400e',r.monitorar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
-      ${okList.length?`<div style="background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:12px">
-        <div style="font-size:.85rem;font-weight:800;color:var(--ok);margin-bottom:8px">✅ EM BOA CONDIÇÃO (${okList.length})</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${okList.map(t=>`<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:600">${t}</span>`).join('')}</div>
-      </div>`:''}
-      ${r.resumo?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px">
-        <div style="font-size:.8rem;font-weight:700;color:var(--pd);margin-bottom:6px">📋 RESUMO EXECUTIVO</div>
-        <div style="font-size:.85rem;line-height:1.6;color:#374151">${r.resumo.replace(/\n/g,'<br>')}</div>
-      </div>`:''}
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button onclick="exportarVarredura()" class="btn btn-o btn-sm">📥 Exportar (.txt)</button>
-      </div>`;
+    // Mostra resumo no modal
+    const okList=(r.ok||[]);
+    document.getElementById('varredura-corpo').innerHTML=`
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:.82rem">
+        <span style="color:var(--ok);font-weight:700">✅ ${dados.length} balanças analisadas — ${uso?.input_tokens||'?'} tokens</span>
+        <button onclick="fecharM('m-varredura');goPage('varredura-rep',document.getElementById('nav-varredura-rep'))"
+          style="background:#4f46e5;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer">
+          📊 Ver relatório completo →
+        </button>
+      </div>
+      ${sec('🗑️ DESCARTAR','#fde8e8','#991b1b',r.descartar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
+      ${sec('🔴 SUBSTITUIR','#fff1f2','#c2410c',r.substituir||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)',x.acao,x.motivo))}
+      ${sec('⚠️ MONITORAR','#fffbeb','#92400e',r.monitorar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
+      ${okList.length?`<div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-size:.82rem;font-weight:800;color:var(--ok);margin-bottom:6px">✅ EM BOA CONDIÇÃO (${okList.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${okList.map(t=>`<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 9px;font-size:.75rem;font-weight:600">${t}</span>`).join('')}</div>
+      </div>`:''}`;
+
+    // Ativa aba de relatório e renderiza
+    document.getElementById('nav-varredura-rep').style.display='block';
+    renderRelatorioIA(r, dados.length);
   }catch(e){
     document.getElementById('varredura-corpo').innerHTML=`
       <div style="background:#fde8e8;border:1px solid #fca5a5;border-radius:8px;padding:14px;color:#991b1b;font-size:.85rem">
@@ -2056,6 +2103,152 @@ function goStab(id,btn){
   if(btn)btn.classList.add('active');
   renderAll();
 }
+
+// ── RELATÓRIO IA ─────────────────────────────────────────────────────────────
+function renderRelatorioIA(r, total){
+  const dataHora = new Date().toLocaleString('pt-BR',{dateStyle:'full',timeStyle:'short'});
+  const meta = document.getElementById('vr-meta');
+  if(meta) meta.textContent = `Última varredura: ${dataHora} · ${total} balanças analisadas`;
+
+  const tabelaSecao = (itens, cols)=>{
+    if(!itens||!itens.length) return '<p style="font-size:.82rem;color:var(--muted);padding:8px 0">Nenhuma balança nesta categoria.</p>';
+    return `<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${itens.map(x=>{
+      if(typeof x==='string') return `<tr><td style="font-weight:600">${x}</td><td>—</td><td>—</td></tr>`;
+      const b = balancas.find(b=>b.tag===x.tag);
+      const ocs = ocorrencias.filter(o=>o.balancaId===b?.id);
+      const custoTotal = ocs.reduce((s,o)=>s+(o.custo||0),0);
+      const depr = b?analisarDepr(b):null;
+      return `<tr>
+        <td><strong>${x.tag}</strong><br><span style="font-size:.72rem;color:var(--muted)">${b?.modelo||''} ${b?.marca||''}</span></td>
+        <td style="font-size:.8rem">${b?.setor||'—'}</td>
+        <td style="font-size:.8rem">${x.motivo||'—'}</td>
+        ${cols.length>3?`<td>${x.acao==='compra_direta'?'<span class="vr-badge vr-compra">🛒 Compra direta</span>':'<span class="vr-badge vr-avaliar">🔍 Avaliar compat.</span>'}</td>`:''}
+        <td style="font-size:.8rem">${fmt(custoTotal)}</td>
+        <td style="font-size:.8rem">${depr?(depr.depreciada?'<span class="depr-chip depr-sim">Sim</span>':'<span class="depr-chip depr-nao">Não</span>'):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  };
+
+  const desc = r.descartar||[], sub = r.substituir||[], mon = r.monitorar||[], ok = r.ok||[];
+  const colBase = ['TAG / Modelo','Setor','Motivo','Custo total','Deprec.'];
+  const colSub  = ['TAG / Modelo','Setor','Motivo','Ação','Custo total','Deprec.'];
+
+  document.getElementById('vr-conteudo').innerHTML=`
+    <div id="vr-header-print" style="display:none;margin-bottom:20px;border-bottom:2px solid #1e429f;padding-bottom:12px">
+      <div style="font-size:1.2rem;font-weight:800;color:#1e429f">LivUp — Relatório de Varredura IA de Balanças</div>
+      <div style="font-size:.85rem;color:#6b7280;margin-top:4px">${dataHora} · ${total} balanças analisadas · Powered by Claude Haiku 4.5</div>
+    </div>
+
+    <!-- Resumo executivo -->
+    ${r.resumo?`<div class="vr-section" style="background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:16px">
+      <h3 style="color:#1e429f">📋 Resumo Executivo</h3>
+      <p style="font-size:.88rem;line-height:1.7;color:#1e3a8a">${r.resumo.replace(/\n/g,'<br>')}</p>
+    </div>`:''}
+
+    <!-- Cards de contagem -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:#fde8e8;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:#991b1b">${desc.length}</div>
+        <div style="font-size:.75rem;color:#991b1b;font-weight:700">🗑️ DESCARTAR</div>
+      </div>
+      <div style="background:#fff1f2;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:#c2410c">${sub.length}</div>
+        <div style="font-size:.75rem;color:#c2410c;font-weight:700">🔴 SUBSTITUIR</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:#92400e">${mon.length}</div>
+        <div style="font-size:.75rem;color:#92400e;font-weight:700">⚠️ MONITORAR</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.8rem;font-weight:800;color:#166534">${ok.length}</div>
+        <div style="font-size:.75rem;color:#166534;font-weight:700">✅ OK</div>
+      </div>
+    </div>
+
+    <!-- Seção DESCARTAR -->
+    ${desc.length?`<div class="vr-section" style="background:#fef2f2;border:1px solid #fecaca">
+      <h3 style="color:#991b1b">🗑️ DESCARTAR — Não vale mais consertar (${desc.length})</h3>
+      ${tabelaSecao(desc,colBase)}
+    </div>`:''}
+
+    <!-- Seção SUBSTITUIR -->
+    ${sub.length?`<div class="vr-section" style="background:#fff7ed;border:1px solid #fed7aa">
+      <h3 style="color:#c2410c">🔴 SUBSTITUIR — Custo elevado (${sub.length})</h3>
+      ${tabelaSecao(sub,colSub)}
+    </div>`:''}
+
+    <!-- Seção MONITORAR -->
+    ${mon.length?`<div class="vr-section" style="background:#fefce8;border:1px solid #fde68a">
+      <h3 style="color:#92400e">⚠️ MONITORAR — Acompanhar de perto (${mon.length})</h3>
+      ${tabelaSecao(mon,colBase)}
+    </div>`:''}
+
+    <!-- Seção OK -->
+    ${ok.length?`<div class="vr-section" style="background:#f0fdf4;border:1px solid #bbf7d0">
+      <h3 style="color:#166534">✅ EM BOA CONDIÇÃO (${ok.length})</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0">
+        ${ok.map(t=>`<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:4px 12px;font-size:.8rem;font-weight:600">${t}</span>`).join('')}
+      </div>
+    </div>`:''}
+
+    <div style="margin-top:12px;font-size:.72rem;color:var(--muted);text-align:center;padding:10px;border-top:1px solid var(--bdr)">
+      Gerado em ${dataHora} · Claude Haiku 4.5 · ${total} balanças analisadas
+    </div>`;
+}
+
+function imprimirRelatorioIA(){
+  // Mostra header de impressão e aciona print
+  const h=document.getElementById('vr-header-print');
+  if(h)h.style.display='block';
+  window.print();
+  setTimeout(()=>{ if(h)h.style.display='none'; },1000);
+}
+
+async function exportarRelatorioIA(){
+  // Usa html2pdf se disponível, senão exporta como HTML
+  const el=document.getElementById('vr-conteudo');
+  const h=document.getElementById('vr-header-print');
+  if(h)h.style.display='block';
+  if(typeof html2pdf!=='undefined'){
+    await html2pdf().set({
+      margin:10,
+      filename:`varredura-balancas-${new Date().toISOString().slice(0,10)}.pdf`,
+      image:{type:'jpeg',quality:.97},
+      html2canvas:{scale:2,useCORS:true},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).from(el).save();
+  } else {
+    // Fallback: HTML exportável
+    const blob=new Blob([`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Varredura IA</title>
+    <style>body{font-family:sans-serif;max-width:900px;margin:20px auto;padding:20px}
+    table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ddd;font-size:12px}
+    th{background:#f3f4f6}h3{margin:16px 0 8px}</style></head><body>
+    ${el.innerHTML}</body></html>`],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`varredura-balancas-${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+  }
+  setTimeout(()=>{ if(h)h.style.display='none'; },1000);
+}
+
+// Carrega última varredura do localStorage se existir
+(function(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('gb_varredura')||'null');
+    if(saved&&saved.resultado){
+      document.getElementById('nav-varredura-rep').style.display='block';
+      const meta=document.getElementById('vr-meta');
+      if(meta){
+        const dt=new Date(saved.data).toLocaleString('pt-BR',{dateStyle:'full',timeStyle:'short'});
+        meta.textContent=`Última varredura: ${dt} · ${saved.total} balanças`;
+      }
+      // Renderiza ao entrar na aba
+      window._savedVarredura=saved;
+    }
+  }catch(e){}
+})();
 
 document.getElementById('mes-f').value=mesAtual();
 
