@@ -407,7 +407,18 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 <!-- ═══════════════════ BALANÇAS ═══════════════════ -->
 <div id="page-balancas" class="page cont">
 
-  <!-- Painel de análise IA -->
+  <!-- Botão IA sempre visível -->
+  <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="color:#fff;font-weight:700;font-size:.95rem">🤖 Análise com Inteligência Artificial</div>
+      <div style="color:rgba(255,255,255,.8);font-size:.78rem;margin-top:2px">Analisa custo x depreciação e recomenda se deve comprar ou manter cada balança</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="abrirIABal()" style="background:#fff;color:#4f46e5;border:none;border-radius:7px;padding:9px 16px;font-size:.83rem;font-weight:700;cursor:pointer">🤖 Analisar balança</button>
+      <button onclick="abrirConfigIA()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:7px;padding:9px 14px;font-size:.8rem;font-weight:600;cursor:pointer">🔑 Configurar chave</button>
+    </div>
+  </div>
+  <!-- Painel de análise IA (alertas automáticos) -->
   <div id="painel-ia-bal" style="display:none;margin-bottom:16px"></div>
 
   <div class="g2">
@@ -1186,40 +1197,38 @@ function renderManPend(){
   document.getElementById('mv-voltaram').textContent = qtdVoltaram;
   document.getElementById('mv-fora').textContent     = aindaFora;
 
-  // Chips: TAGs ainda na terceirizada
+  // Chips: TAGs ainda na terceirizada → clique preenche Etapa 4 (Retorno)
   const blocoFora = document.getElementById('bloco-fora');
   if(listaFora.length){
     blocoFora.style.display='block';
     document.getElementById('chips-fora').innerHTML = listaFora.map(o=>{
       const atrasada = o.previsaoChegada && o.previsaoChegada < hoje;
-      const cor = atrasada
-        ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b'
-        : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
+      const cor = atrasada ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b' : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
       const prev = o.previsaoChegada ? ` · prev: ${fd(o.previsaoChegada)}${atrasada?' ⚠️':''}` : '';
-      return `<span onclick="selecionarOcMan('${o.id}')" title="Clique para editar"
+      return `<span onclick="preencherEtapa(4,'${o.id}')" title="Clique para registrar retorno (Etapa 4)"
         style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;${cor};border:1px solid;border-radius:20px;padding:4px 11px;font-size:.74rem;font-weight:600">
-        ⚖️ ${nomeBal(o.balancaId)}${prev}</span>`;
+        ⚖️ ${nomeBal(o.balancaId)}${prev} <span style="font-size:.65rem;opacity:.7">→ Etapa 4</span></span>`;
     }).join('');
   } else {
     blocoFora.style.display='none';
   }
 
-  // Chips: aguardando manutenção (sem saída ainda)
-  let aguardando = ocorrencias.filter(o=>!o.dataRetirada);
+  // Chips: aguardando saída → clique preenche Etapa 2 (Saída)
+  let aguardando = ocorrencias.filter(o=>!o.dataRetirada&&!o.dataRetorno&&getStatus(o)!=='DESCARTADO');
   if(fMes) aguardando = aguardando.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
   const blocoAg = document.getElementById('bloco-aguardando');
   if(aguardando.length){
     blocoAg.style.display='block';
     document.getElementById('chips-aguardando').innerHTML = aguardando.map(o=>
-      `<span onclick="selecionarOcMan('${o.id}')" title="Clique para preencher"
+      `<span onclick="preencherEtapa(2,'${o.id}')" title="Clique para registrar saída (Etapa 2)"
         style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;background:#e1effe;border:1px solid #93c5fd;color:var(--pd);border-radius:20px;padding:4px 11px;font-size:.74rem;font-weight:600">
-        ⚖️ ${nomeBal(o.balancaId)} · ${fd(o.dataQuebra)}</span>`
+        ⚖️ ${nomeBal(o.balancaId)} · ${fd(o.dataQuebra)} <span style="font-size:.65rem;opacity:.7">→ Etapa 2</span></span>`
     ).join('');
   } else {
     blocoAg.style.display='none';
   }
 
-  // Tabela
+  // Tabela — linhas clicáveis
   let lista = [...ocorrencias].sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
   if(fMes) lista = lista.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
   if(fSt)  lista = lista.filter(o=>getStatus(o)===fSt);
@@ -1229,26 +1238,29 @@ function renderManPend(){
 
   el.innerHTML=`<table><thead><tr>
     <th>TAG</th><th>Quebra</th><th>Setor</th><th>OS</th>
-    <th>Saída</th><th>Orçamento</th><th>Aprovado por</th><th>Status</th>
-    <th>Prev. Chegada</th><th>Retorno</th><th>Validou</th><th></th>
+    <th>Saída</th><th>Orçamento</th><th>Status</th>
+    <th>Retorno</th><th>Ação</th>
   </tr></thead>
   <tbody>${lista.map(o=>{
-    const reinc    = isReinc(o);
-    const st       = getStatus(o);
+    const reinc = isReinc(o);
+    const st    = getStatus(o);
     const atrasada = o.previsaoChegada && !o.dataRetorno && o.previsaoChegada < hoje;
-    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}">
+    // Determina qual etapa faz sentido para esta ocorrência
+    let proxEtapa = 0, proxLabel = '';
+    if(!o.dataRetirada && st!=='DESCARTADO'){proxEtapa=2;proxLabel='📤 Registrar saída';}
+    else if(o.dataRetirada && !o.custo && st!=='DESCARTADO'){proxEtapa=3;proxLabel='💰 Orçamento';}
+    else if(o.dataRetirada && !o.dataRetorno && st==='APROVADO'){proxEtapa=4;proxLabel='📥 Registrar retorno';}
+    else if(o.dataRetirada && !o.dataRetorno && st!=='DESCARTADO'){proxEtapa=4;proxLabel='📥 Registrar retorno';}
+    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}" style="cursor:${proxEtapa?'pointer':'default'}" onclick="${proxEtapa?`preencherEtapa(${proxEtapa},'${o.id}')`:''}" title="${proxLabel||''}">
       <td><strong>${nomeBal(o.balancaId)}</strong>${reinc?'<br><span class="tq">⚡&lt;7d</span>':''}</td>
       <td>${fd(o.dataQuebra)}</td>
       <td>${o.setor||'—'}</td>
       <td class="os-s">${o.numeroOS||'—'}</td>
       <td>${fd(o.dataRetirada)}</td>
-      <td>${o.valorOrcamento?fmt(o.valorOrcamento)+(o.qtdOrcamento?' ('+o.qtdOrcamento+'un)':''):'—'}</td>
-      <td>${o.aprovadoPor||'—'}</td>
-      <td>${statusBadge(st)}</td>
-      <td>${o.previsaoChegada?fd(o.previsaoChegada)+(atrasada?' <span class="badge b-bad">Atrasada</span>':''):'—'}</td>
+      <td>${o.valorOrcamento?fmt(o.valorOrcamento):'—'}</td>
+      <td>${statusBadge(st)}${atrasada?' <span class="badge b-bad">Atrasada</span>':''}</td>
       <td>${fd(o.dataRetorno)}</td>
-      <td>${o.quemValidou||'—'}</td>
-      <td><button class="btn btn-w btn-sm" onclick="selecionarOcMan('${o.id}')">Selecionar</button></td>
+      <td>${proxEtapa?`<span style="font-size:.74rem;color:var(--p);font-weight:600">${proxLabel}</span>`:'<span style="font-size:.72rem;color:var(--muted)">—</span>'}</td>
     </tr>`;
   }).join('')}</tbody></table>`;
 }
@@ -1369,6 +1381,15 @@ function renderBalancas(){
       <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
     </td></tr>`;
   }).join('')}</tbody></table>`;
+}
+
+function abrirIABal(){
+  // Pede a TAG ao usuário e abre a análise IA
+  const tag = prompt('Digite a TAG da balança para analisar:\n(Ex: AS-BL-185)');
+  if(!tag) return;
+  const bal = findBal(tag);
+  if(!bal){ alert('TAG não encontrada. Verifique e tente novamente.'); return; }
+  abrirIA(bal.id);
 }
 
 function abrirConfigIA(){
@@ -1565,6 +1586,25 @@ function findOcAtiva(balId, filtro){
     .filter(o=>o.balancaId===balId)
     .sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''))
     .find(filtro);
+}
+
+// Preenche o campo TAG da etapa correta e rola a tela até ela
+function preencherEtapa(etapa, ocId){
+  const oc  = ocorrencias.find(o=>o.id===ocId);
+  const bal = balancas.find(b=>b.id===oc?.balancaId);
+  if(!bal) return;
+  const tag = bal.tag;
+  const campoId = {2:'s2-tag', 3:'s3-tag', 4:'s4-tag', 5:'s5-tag'}[etapa];
+  if(!campoId) return;
+  const el = document.getElementById(campoId);
+  if(!el) return;
+  el.value = tag;
+  el.style.borderColor = 'var(--p)';
+  el.style.background = '#eff6ff';
+  setTimeout(()=>{ el.style.borderColor=''; el.style.background=''; }, 2000);
+  // Scroll até a etapa
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  el.focus();
 }
 
 function step1Salvar(){
