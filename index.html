@@ -414,8 +414,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
       <div style="color:rgba(255,255,255,.8);font-size:.78rem;margin-top:2px">Analisa custo x depreciação e recomenda se deve comprar ou manter cada balança</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="abrirIABal()" style="background:#fff;color:#4f46e5;border:none;border-radius:7px;padding:9px 16px;font-size:.83rem;font-weight:700;cursor:pointer">🤖 Analisar balança</button>
-      <button onclick="abrirConfigIA()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:7px;padding:9px 14px;font-size:.8rem;font-weight:600;cursor:pointer">🔑 Configurar chave</button>
+      <button onclick="varreduraCompleta()" style="background:#fff;color:#4f46e5;border:none;border-radius:7px;padding:9px 16px;font-size:.83rem;font-weight:700;cursor:pointer">🔍 Varredura completa</button>
+      <button onclick="abrirIABal()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:7px;padding:9px 14px;font-size:.8rem;font-weight:600;cursor:pointer">🤖 Analisar balança</button>
+      <button onclick="abrirConfigIA()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:9px 12px;font-size:.78rem;font-weight:600;cursor:pointer">🔑 Chave IA</button>
     </div>
   </div>
   <!-- Painel de análise IA (alertas automáticos) -->
@@ -462,6 +463,42 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <div id="res-rel"></div>
 </div>
 
+
+<!-- MODAL VARREDURA COMPLETA IA -->
+<div class="modal-ov" id="m-varredura">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">🔍 Varredura Completa — Análise IA de todas as balanças</h3>
+      <button onclick="fecharM('m-varredura')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="varredura-filtro" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:12px;font-size:.83rem;color:var(--pd)">
+      <strong>Filtros da varredura:</strong>
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer">
+          <input type="checkbox" id="vf-com-custo" checked> Incluir apenas balanças com custo de manutenção no ano
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer">
+          <input type="checkbox" id="vf-com-valor"> Apenas balanças com valor de aquisição cadastrado
+        </label>
+      </div>
+    </div>
+    <div id="varredura-corpo" style="max-height:60vh;overflow-y:auto">
+      <div class="ia-loading" style="padding:40px">
+        Clique em <strong>🔍 Iniciar Varredura</strong> para analisar todas as balanças com IA.<br>
+        <small style="color:var(--muted);margin-top:8px;display:block">A IA analisa custo acumulado, depreciação, histórico de quebras e recomenda o melhor caminho para cada balança.</small>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap">
+      <div style="font-size:.72rem;color:var(--muted)">
+        Powered by <strong>Claude Haiku 4.5</strong> — otimizado para análise em lote
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-o" onclick="fecharM('m-varredura')">Fechar</button>
+        <button class="btn-ia" id="btn-varredura" onclick="executarVarredura()" style="padding:9px 18px;font-size:.85rem">🔍 Iniciar Varredura</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL CONFIG CHAVE IA -->
 <div class="modal-ov" id="m-cfg-ia">
@@ -1381,6 +1418,146 @@ function renderBalancas(){
       <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
     </td></tr>`;
   }).join('')}</tbody></table>`;
+}
+
+// ── VARREDURA COMPLETA IA ─────────────────────────────────────────────────────
+function varreduraCompleta(){
+  const key = localStorage.getItem('claude_api_key')||'';
+  if(!key){
+    if(confirm('Nenhuma chave IA configurada. Deseja configurar agora?')) abrirConfigIA();
+    return;
+  }
+  document.getElementById('varredura-corpo').innerHTML=`
+    <div class="ia-loading" style="padding:40px">
+      Clique em <strong>🔍 Iniciar Varredura</strong> para analisar todas as balanças com IA.
+    </div>`;
+  document.getElementById('m-varredura').classList.add('open');
+}
+
+async function executarVarredura(){
+  const key = localStorage.getItem('claude_api_key')||'';
+  if(!key){ alert('Configure a chave IA primeiro.'); abrirConfigIA(); return; }
+
+  const soComCusto = document.getElementById('vf-com-custo').checked;
+  const soComValor = document.getElementById('vf-com-valor').checked;
+  const ano = new Date().getFullYear().toString();
+
+  // Coleta dados de todas as balanças
+  const dados = balancas.map(b=>{
+    const ocs  = ocorrencias.filter(o=>o.balancaId===b.id);
+    const custoAno = ocs.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(ano)).reduce((s,o)=>s+(o.custo||0),0);
+    const custoTotal = ocs.reduce((s,o)=>s+(o.custo||0),0);
+    const depr = analisarDepr(b);
+    return { b, ocs, custoAno, custoTotal, depr };
+  }).filter(x=>{
+    if(soComCusto && x.custoAno === 0) return false;
+    if(soComValor && !x.b.valor) return false;
+    return true;
+  });
+
+  if(!dados.length){
+    document.getElementById('varredura-corpo').innerHTML='<p class="empty">Nenhuma balança encontrada com os filtros selecionados.</p>';
+    return;
+  }
+
+  const btn = document.getElementById('btn-varredura');
+  btn.disabled=true; btn.textContent='⏳ Analisando '+dados.length+' balanças...';
+  document.getElementById('varredura-corpo').innerHTML=`
+    <div class="ia-loading" style="padding:40px">
+      🤖 Claude Haiku está analisando <strong>${dados.length} balanças</strong>...<br>
+      <small style="color:var(--muted);margin-top:8px;display:block">Isso pode levar alguns segundos.</small>
+    </div>`;
+
+  // Monta prompt com dados de todas as balanças
+  const linhas = dados.map(({b,ocs,custoAno,custoTotal,depr})=>{
+    const pct = b.valor ? (custoAno/b.valor*100).toFixed(0)+'%' : 'sem valor';
+    const deprTxt = depr ? (depr.depreciada?'DEPRECIADA':'Em uso '+depr.pctDepr.toFixed(0)+'%') : 'sem data';
+    return `${b.tag} | Modelo: ${b.modelo||'?'} ${b.marca||''} | Setor: ${b.setor||'-'} | Quebras: ${ocs.length} | Custo ${ano}: R$${custoAno} (${pct} do valor R$${b.valor||0}) | Custo total: R$${custoTotal} | Depreciação: ${deprTxt}`;
+  }).join('\n');
+
+  const prompt = `Você é especialista em gestão de equipamentos de pesagem para indústria alimentícia (LivUp).
+
+Analise TODAS as balanças abaixo e classifique cada uma em uma dessas categorias:
+- ✅ OK: custo dentro do normal, manter
+- ⚠️ MONITORAR: custo elevado mas ainda viável, monitorar de perto
+- 🔴 SUBSTITUIR: custo acima de 40% do valor ou muito frequente, substituir
+- 🗑️ DESCARTADA: totalmente depreciada e com alto custo, descartar
+
+Para cada balança SUBSTITUIR ou MONITORAR, indique:
+- Se depreciada: "COMPRA DIRETA"
+- Se não depreciada: "AVALIAR COMPATIBILIDADE com setor X"
+
+BALANÇAS (${dados.length} no total):
+${linhas}
+
+Responda em formato estruturado:
+1. Primeiro uma tabela resumida com: TAG | Status | Ação recomendada
+2. Depois liste as PRIORIDADES DE AÇÃO (apenas as que precisam de intervenção)
+3. Por fim, um RESUMO EXECUTIVO de 3-4 linhas
+
+Seja direto e objetivo. Responda em português.`;
+
+  try{
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:2000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    if(!resp.ok){
+      const err=await resp.json();
+      throw new Error(err.error?.message||'Erro na API: '+resp.status);
+    }
+    const data = await resp.json();
+    const texto = data.content[0].text;
+    const html = texto
+      .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^#{1,3} (.+)$/gm,'<h4 style="color:var(--pd);margin:12px 0 6px">$1</h4>')
+      .replace(/✅/g,'<span style="color:var(--ok)">✅</span>')
+      .replace(/⚠️/g,'<span style="color:#d97706">⚠️</span>')
+      .replace(/🔴/g,'<span style="color:var(--danger)">🔴</span>')
+      .replace(/🗑️/g,'<span style="color:#7c3aed">🗑️</span>')
+      .replace(/\n/g,'<br>');
+
+    const uso = data.usage;
+    document.getElementById('varredura-corpo').innerHTML=`
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.78rem;color:var(--ok);display:flex;justify-content:space-between">
+        <span>✅ Varredura concluída — ${dados.length} balanças analisadas</span>
+        <span style="color:var(--muted)">${uso?.input_tokens||'?'} tokens entrada · ${uso?.output_tokens||'?'} saída</span>
+      </div>
+      <div class="ia-resp" style="max-height:50vh;overflow-y:auto">${html}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="exportarVarredura()" class="btn btn-o btn-sm">📥 Salvar relatório (.txt)</button>
+        <button onclick="document.getElementById('varredura-corpo').querySelector('.ia-resp').innerHTML=''" class="btn btn-o btn-sm" style="color:var(--danger);border-color:var(--danger)">🗑 Limpar</button>
+      </div>`;
+    window._ultimaVarredura = texto;
+  }catch(e){
+    document.getElementById('varredura-corpo').innerHTML=`
+      <div class="ia-resp" style="background:#fde8e8;border-color:#fca5a5">
+        ❌ Erro: ${e.message}<br><br>
+        Verifique se a chave API está correta e tente novamente.
+      </div>`;
+  }
+  btn.disabled=false; btn.textContent='🔍 Nova Varredura';
+}
+
+function exportarVarredura(){
+  if(!window._ultimaVarredura){return;}
+  const blob = new Blob([
+    `VARREDURA DE BALANÇAS — ${new Date().toLocaleString('pt-BR')}\n\n${window._ultimaVarredura}`
+  ],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`varredura-balancas-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
 }
 
 function abrirIABal(){
