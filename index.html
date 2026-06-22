@@ -60,6 +60,27 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 .tq{font-size:.67rem;background:#fde8e8;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700;white-space:nowrap}
 .hl td{background:#fff5f5!important}
 .hl2 td{background:#fdf4ff!important}
+/* Análise de custo */
+.custo-bar-wrap{width:100%;background:#e5e7eb;border-radius:20px;height:8px;margin:4px 0}
+.custo-bar{height:8px;border-radius:20px;transition:width .4s}
+.custo-ok{background:#22c55e}.custo-warn{background:#f59e0b}.custo-crit{background:#ef4444}
+.meta-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:700}
+.meta-ok{background:#def7ec;color:#065f46}.meta-warn{background:#fef3c7;color:#92400e}.meta-crit{background:#fde8e8;color:#991b1b}
+.depr-chip{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.7rem;font-weight:700}
+.depr-sim{background:#ede9fe;color:#5b21b6}.depr-nao{background:#e1effe;color:var(--pd)}
+.alert-meta{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin-bottom:14px}
+.alert-meta h3{font-size:.88rem;font-weight:700;color:#9a3412;margin-bottom:10px}
+.meta-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:.82rem;cursor:pointer;transition:background .2s}
+.meta-item:hover{filter:brightness(.96)}
+.meta-item.warn{background:#fef3c7;border:1px solid #fcd34d}
+.meta-item.crit{background:#fde8e8;border:1px solid #fca5a5}
+.ia-resp{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px;font-size:.84rem;line-height:1.7;white-space:pre-wrap}
+.ia-loading{text-align:center;padding:30px;color:var(--muted);font-size:.9rem}
+.btn-ia{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-ia:hover{opacity:.9}
+.rec-card{border-radius:8px;padding:12px;margin-top:10px;font-size:.83rem}
+.rec-comprar{background:#dcfce7;border-left:4px solid #16a34a}.rec-avaliar{background:#e0f2fe;border-left:4px solid #0284c7}
+.settings-link{font-size:.75rem;color:rgba(255,255,255,.7);cursor:pointer;text-decoration:underline;margin-left:10px}
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
 .modal-ov.open{display:flex}
 .modal{background:#fff;border-radius:10px;padding:20px;width:100%;max-width:560px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow-y:auto}
@@ -93,6 +114,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
 <div id="page-dashboard" class="page active cont">
   <div id="alertas"></div>
+  <div id="alertas-meta"></div>
   <div class="g5" style="margin-bottom:16px">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
     <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (mês)</div></div>
@@ -415,6 +437,28 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   <div id="res-rel"></div>
 </div>
 
+
+<!-- MODAL ANÁLISE IA -->
+<div class="modal-ov" id="m-ia">
+  <div class="modal" style="max-width:620px">
+    <h3>🤖 Análise de Custo — IA</h3>
+    <div id="ia-bal-info" style="background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:.83rem"></div>
+    <div id="ia-custo-info" style="margin-bottom:12px"></div>
+    <div id="ia-rec" style="margin-bottom:12px"></div>
+    <div id="ia-corpo">
+      <div class="ia-loading">Clique em <strong>Analisar com IA</strong> para obter a recomendação do Claude.</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-o" onclick="fecharM('m-ia')">Fechar</button>
+      <button class="btn-ia" id="btn-ia-analisar" onclick="rodarIA()">🤖 Analisar com IA</button>
+    </div>
+    <div style="margin-top:10px;font-size:.72rem;color:var(--muted);border-top:1px solid var(--bdr);padding-top:8px">
+      🔑 Chave API Claude: <input type="password" id="ia-key" placeholder="sk-ant-..." style="width:220px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.78rem">
+      <button onclick="salvarKey()" style="margin-left:6px;padding:4px 10px;background:var(--p);color:#fff;border:none;border-radius:5px;font-size:.72rem;cursor:pointer">Salvar</button>
+      <span id="key-ok" style="color:var(--ok);margin-left:6px;font-size:.72rem"></span>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDITAR BAL -->
 <div class="modal-ov" id="m-bal">
@@ -782,6 +826,7 @@ function renderSelects(){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
+  renderAlertasMeta();
   const mes=mesAtual();
   const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
   document.getElementById('s-bal').textContent=balancas.length;
@@ -1239,10 +1284,12 @@ function renderBalancas(){
   if(busca)lista=lista.filter(b=>b.tag.toLowerCase().includes(busca)||(b.modelo||'').toLowerCase().includes(busca)||(b.marca||'').toLowerCase().includes(busca));
   const el=document.getElementById('t-bal');
   if(!lista.length){el.innerHTML='<p class="empty">Nenhuma balança.</p>';return;}
-  el.innerHTML=`<table><thead><tr><th>TAG</th><th>Série</th><th>Modelo</th><th>Marca</th><th>Cap.</th><th>Valor da Balança (R$)</th><th>Quebras</th><th>Custo consertos</th><th></th></tr></thead>
+  el.innerHTML=`<table><thead><tr><th>TAG</th><th>Série</th><th>Modelo</th><th>Marca</th><th>Cap.</th><th>Valor Aquisição (R$)</th><th>Data Aquisição</th><th>Custo ${new Date().getFullYear()}</th><th>Meta 40%</th><th>Deprec.</th><th></th></tr></thead>
   <tbody>${lista.map(b=>{
     const ocs=ocorrencias.filter(o=>o.balancaId===b.id);
-    const ct=ocs.reduce((s,o)=>s+(o.custo||0),0);
+    const st=statusCusto(b);
+    const depr=analisarDepr(b);
+    const barW=b.valor?Math.min(st.pct*100,100).toFixed(0):0;
     return`<tr>
     <td><strong>${b.tag}</strong>${b.setor?`<br><small style="color:var(--muted)">${b.setor}</small>`:''}</td>
     <td style="color:var(--muted);font-size:.75rem">${b.serie||'—'}</td>
@@ -1253,17 +1300,30 @@ function renderBalancas(){
       <div style="display:flex;align-items:center;gap:4px">
         <span style="color:var(--muted);font-size:.75rem">R$</span>
         <input type="number" min="0" step="0.01"
-          value="${b.valor||''}"
-          placeholder="0,00"
+          value="${b.valor||''}" placeholder="0,00"
           style="width:90px;padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.8rem;background:#f9fafb"
-          onchange="salvarValorBal('${b.id}', this.value)"
+          onchange="salvarValorBal('${b.id}',this.value)"
           onfocus="this.style.borderColor='var(--p)';this.style.background='#fff'"
           onblur="this.style.borderColor='var(--bdr)';this.style.background='#f9fafb'">
       </div>
     </td>
-    <td><span class="badge b-info">${ocs.length}</span></td>
-    <td>${fmt(ct)}</td>
+    <td>
+      <input type="date" value="${b.dataAquisicao||''}"
+        style="padding:4px 6px;border:1px solid var(--bdr);border-radius:5px;font-size:.78rem;background:#f9fafb;width:130px"
+        onchange="salvarDataAqBal('${b.id}',this.value)"
+        onfocus="this.style.borderColor='var(--p)'"
+        onblur="this.style.borderColor='var(--bdr)'">
+    </td>
+    <td>${b.valor?`<strong style="color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'inherit'}">${fmt(st.custo)}</strong>`:'—'}</td>
+    <td style="min-width:100px">
+      ${b.valor?`
+        <div class="custo-bar-wrap"><div class="custo-bar custo-${st.nivel}" style="width:${barW}%"></div></div>
+        <div style="font-size:.72rem;color:${st.nivel==='crit'?'var(--danger)':st.nivel==='warn'?'#d97706':'var(--ok)'}">${(st.pct*100).toFixed(0)}% ${st.nivel==='crit'?'🚨':st.nivel==='warn'?'⚠️':'✅'}</div>
+      `:'<span style="color:var(--muted);font-size:.75rem">Sem valor</span>'}
+    </td>
+    <td>${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}">${depr.depreciada?'Sim':'Não ('+depr.pctDepr.toFixed(0)+'%)'}</span>`:'—'}</td>
     <td class="actions">
+      ${(st.nivel==='warn'||st.nivel==='crit')?`<button class="btn-ia" onclick="abrirIA('${b.id}')">🤖 IA</button>`:''}
       <button class="btn btn-o btn-sm" onclick="abrirEBal('${b.id}')">✏️</button>
       <button class="btn btn-d btn-sm" onclick="excluirBal('${b.id}')">🗑</button>
     </td></tr>`;
@@ -1272,7 +1332,11 @@ function renderBalancas(){
 
 function salvarValorBal(id, val){
   const b = balancas.find(x=>x.id===id);
-  if(b){ b.valor = parseFloat(val)||0; salvar(); }
+  if(b){ b.valor = parseFloat(val)||0; salvar(); renderAlertasMeta(); }
+}
+function salvarDataAqBal(id, val){
+  const b = balancas.find(x=>x.id===id);
+  if(b){ b.dataAquisicao = val||null; salvar(); renderAlertasMeta(); }
 }
 
 // ── RELATÓRIO ─────────────────────────────────────────────────────────────────
@@ -1375,6 +1439,194 @@ function renderAll(){
   }
 }
 document.getElementById('mes-f').value=mesAtual();
+
+// ── ANÁLISE DE CUSTO / DEPRECIAÇÃO / IA ──────────────────────────────────────
+const VIDA_UTIL_ANOS = 5;
+const META_ALERTA    = 0.40; // 40% → alerta
+const META_CRITICA   = 0.80; // 80% → crítico
+
+function custoAnoBal(balId){
+  const ano = new Date().getFullYear().toString();
+  return ocorrencias
+    .filter(o=>o.balancaId===balId && o.dataQuebra && o.dataQuebra.startsWith(ano))
+    .reduce((s,o)=>s+(o.custo||0), 0);
+}
+
+function custoTotalBal(balId){
+  return ocorrencias.filter(o=>o.balancaId===balId).reduce((s,o)=>s+(o.custo||0),0);
+}
+
+function analisarDepr(bal){
+  if(!bal.dataAquisicao || !bal.valor) return null;
+  const anosDecorridos = (Date.now()-new Date(bal.dataAquisicao))/(365.25*24*3600*1000);
+  const depreciada = anosDecorridos >= VIDA_UTIL_ANOS;
+  const pctDepr = Math.min(anosDecorridos/VIDA_UTIL_ANOS*100,100);
+  const valorResidual = depreciada ? 0 : bal.valor*(1-anosDecorridos/VIDA_UTIL_ANOS);
+  return { anosDecorridos, depreciada, pctDepr, valorResidual };
+}
+
+function statusCusto(bal){
+  const custo = custoAnoBal(bal.id);
+  if(!bal.valor) return {nivel:'sem-valor', pct:0, custo};
+  const pct = custo/bal.valor;
+  const nivel = pct>=META_CRITICA?'crit':pct>=META_ALERTA?'warn':'ok';
+  return {nivel, pct, custo};
+}
+
+function renderAlertasMeta(){
+  const el = document.getElementById('alertas-meta');
+  const alertas = balancas
+    .map(b=>({b, st:statusCusto(b), depr:analisarDepr(b)}))
+    .filter(x=>x.st.nivel==='warn'||x.st.nivel==='crit')
+    .sort((a,b)=>b.st.pct-a.st.pct);
+  if(!alertas.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="alert-meta">
+    <h3>⚠️ ${alertas.length} balança(s) com custo de manutenção elevado em ${new Date().getFullYear()}</h3>
+    ${alertas.map(({b,st,depr})=>`
+    <div class="meta-item ${st.nivel}" onclick="abrirIA('${b.id}')">
+      <div>
+        <strong>${b.tag}</strong>
+        <span style="margin-left:8px;font-size:.78rem;color:var(--muted)">${b.modelo||''} ${b.marca||''}</span>
+        ${depr?`<span class="depr-chip ${depr.depreciada?'depr-sim':'depr-nao'}" style="margin-left:6px">${depr.depreciada?'Depreciada':'Em uso'}</span>`:''}
+      </div>
+      <div style="text-align:right">
+        <div><strong>${fmt(st.custo)}</strong> <span style="color:var(--muted);font-size:.76rem">/ ${fmt(b.valor)}</span></div>
+        <div class="custo-bar-wrap" style="width:120px;display:inline-block">
+          <div class="custo-bar custo-${st.nivel}" style="width:${Math.min(st.pct*100,100).toFixed(0)}%"></div>
+        </div>
+        <div style="font-size:.72rem;color:${st.nivel==='crit'?'var(--danger)':'#92400e'}">${(st.pct*100).toFixed(0)}% do valor</div>
+        <div style="font-size:.7rem;color:var(--p);margin-top:2px">🤖 Clique para analisar</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── MODAL IA ──────────────────────────────────────────────────────────────────
+let iaBalId = null;
+
+function abrirIA(balId){
+  iaBalId = balId;
+  const bal  = balancas.find(b=>b.id===balId);
+  const st   = statusCusto(bal);
+  const depr = analisarDepr(bal);
+  const ocs  = ocorrencias.filter(o=>o.balancaId===balId).length;
+
+  document.getElementById('ia-bal-info').innerHTML=`
+    <strong>${bal.tag}</strong> — ${bal.modelo||'—'} ${bal.marca||''} &nbsp;|&nbsp; Setor: ${bal.setor||'Não informado'}
+    &nbsp;|&nbsp; Capacidade: ${bal.capDiv||'—'}
+    ${bal.dataAquisicao?`&nbsp;|&nbsp; Aquisição: ${fd(bal.dataAquisicao)}`:''}`;
+
+  const nivelTxt = st.nivel==='crit'?'🚨 CRÍTICO':'⚠️ ATENÇÃO';
+  const corBarra = st.nivel==='crit'?'#ef4444':'#f59e0b';
+  document.getElementById('ia-custo-info').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="stat" style="padding:10px"><div class="v" style="font-size:1.3rem;color:${corBarra}">${fmt(st.custo)}</div><div class="l">Custo ${new Date().getFullYear()}</div></div>
+      <div class="stat" style="padding:10px"><div class="v" style="font-size:1.3rem">${fmt(bal.valor||0)}</div><div class="l">Valor aquisição</div></div>
+      <div class="stat" style="padding:10px"><div class="v" style="font-size:1.3rem;color:${corBarra}">${(st.pct*100).toFixed(0)}%</div><div class="l">Da meta (40% = alerta)</div></div>
+    </div>
+    <div class="custo-bar-wrap"><div class="custo-bar custo-${st.nivel}" style="width:${Math.min(st.pct*100,100).toFixed(0)}%"></div></div>
+    <div style="font-size:.78rem;margin-top:4px;color:${corBarra}">${nivelTxt} — Meta de alerta: ${fmt((bal.valor||0)*META_ALERTA)} | Meta crítica: ${fmt((bal.valor||0)*META_CRITICA)}</div>`;
+
+  let recHtml = '';
+  if(depr){
+    recHtml = `<div class="rec-card ${depr.depreciada?'rec-comprar':'rec-avaliar'}">
+      <strong>${depr.depreciada?'🛒 Equipamento depreciado — indicado compra direta':'🔍 Equipamento ainda em vida útil — avaliar compatibilidade com setor'}</strong>
+      <div style="font-size:.8rem;margin-top:4px">
+        Idade: ${depr.anosDecorridos.toFixed(1)} anos &nbsp;|&nbsp;
+        ${depr.depreciada?'100% depreciada — sem valor residual':`Deprec: ${depr.pctDepr.toFixed(0)}% &nbsp;|&nbsp; Valor residual: ${fmt(depr.valorResidual)}`}
+      </div>
+      ${!depr.depreciada?`<div style="font-size:.78rem;margin-top:4px;color:#0284c7">→ Gerar avaliação de compatibilidade com setor "${bal.setor||'a definir'}" antes da compra</div>`:''}
+    </div>`;
+    document.getElementById('ia-rec').innerHTML = recHtml;
+  }
+
+  document.getElementById('ia-corpo').innerHTML='<div class="ia-loading">Clique em <strong>🤖 Analisar com IA</strong> para obter recomendação do Claude.</div>';
+
+  // Carrega chave salva
+  const key = localStorage.getItem('claude_api_key')||'';
+  document.getElementById('ia-key').value = key;
+  document.getElementById('key-ok').textContent = key?'✅ Chave salva':'';
+
+  document.getElementById('m-ia').classList.add('open');
+}
+
+function salvarKey(){
+  const key = document.getElementById('ia-key').value.trim();
+  localStorage.setItem('claude_api_key', key);
+  document.getElementById('key-ok').textContent = key?'✅ Salva!':'';
+}
+
+async function rodarIA(){
+  const bal   = balancas.find(b=>b.id===iaBalId);
+  const st    = statusCusto(bal);
+  const depr  = analisarDepr(bal);
+  const key   = localStorage.getItem('claude_api_key')||document.getElementById('ia-key').value.trim();
+  if(!key){ alert('Adicione sua chave da API do Claude (sk-ant-...) no campo abaixo.'); return; }
+
+  const ocs = ocorrencias.filter(o=>o.balancaId===bal.id);
+  const ultimasOcs = ocs.slice(-5).map(o=>`  - ${fd(o.dataQuebra)}: ${o.problemaConstatado||'sem descrição'} (${fmt(o.custo)})`).join('\n');
+
+  const prompt = `Você é especialista em manutenção de equipamentos de pesagem para indústria alimentícia (LivUp).
+
+BALANÇA:
+- TAG: ${bal.tag} | Modelo: ${bal.modelo||'—'} ${bal.marca||''} | Setor: ${bal.setor||'não informado'} | Cap: ${bal.capDiv||'—'}
+- Valor de aquisição: ${fmt(bal.valor||0)} | Data aquisição: ${fd(bal.dataAquisicao)}
+
+ANÁLISE FINANCEIRA ${new Date().getFullYear()}:
+- Custo acumulado de manutenção: ${fmt(st.custo)}
+- Percentual do valor de aquisição: ${(st.pct*100).toFixed(1)}%
+- Status: ${st.nivel==='crit'?'CRÍTICO (acima de 80%)':st.nivel==='warn'?'ALERTA (acima de 40%)':'OK'}
+- Total de ocorrências históricas: ${ocs.length}
+
+DEPRECIAÇÃO:
+- Idade: ${depr?depr.anosDecorridos.toFixed(1)+' anos':'não calculada'}
+- Status: ${depr?(depr.depreciada?'TOTALMENTE DEPRECIADA (acima de 5 anos)':depr.pctDepr.toFixed(0)+'% depreciada, valor residual '+fmt(depr.valorResidual)):'sem data de aquisição'}
+
+ÚLTIMAS MANUTENÇÕES:
+${ultimasOcs||'  Nenhum registro detalhado'}
+
+Com base nesses dados, responda de forma objetiva e direta:
+
+1. **RECOMENDAÇÃO**: Devemos substituir ou continuar mantendo?
+2. **DECISÃO**: Compra direta (equipamento depreciado) ou avaliar compatibilidade com o setor primeiro?
+3. **JUSTIFICATIVA FINANCEIRA**: Compare custo de manutenção vs aquisição de novo equipamento.
+4. **COMPATIBILIDADE**: Se recomendar avaliação, o que considerar para o setor "${bal.setor||'atual'}" com capacidade ${bal.capDiv||'similar'}?
+5. **PRAZO**: Urgência da decisão.
+
+Seja direto. Use linguagem de negócios. Responda em português.`;
+
+  const btn = document.getElementById('btn-ia-analisar');
+  btn.disabled=true; btn.textContent='⏳ Analisando...';
+  document.getElementById('ia-corpo').innerHTML='<div class="ia-loading">🤖 Claude está analisando... aguarde.</div>';
+
+  try{
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:900,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    if(!resp.ok){
+      const err = await resp.json();
+      throw new Error(err.error?.message||'Erro na API');
+    }
+    const data = await resp.json();
+    const texto = data.content[0].text;
+    document.getElementById('ia-corpo').innerHTML=`<div class="ia-resp">${texto.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+  }catch(e){
+    document.getElementById('ia-corpo').innerHTML=`<div class="ia-resp" style="background:#fde8e8;border-color:#fca5a5">❌ Erro: ${e.message}<br><br>Verifique se a chave API está correta e tente novamente.</div>`;
+  }
+  btn.disabled=false; btn.textContent='🤖 Analisar com IA';
+}
+
 renderAll();
 
 // ── SINCRONIZAÇÃO COM FIREBASE (dados do almoxarifado) ───────────────────────
