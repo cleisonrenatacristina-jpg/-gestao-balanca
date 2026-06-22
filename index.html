@@ -805,10 +805,30 @@ function init() {
 }
 
 let {bal:balancas,oc:ocorrencias}=init();
+aplicarPrecosMercado();
 let editManId=null, editBalId=null;
 const charts={};
 
 function salvar(){localStorage.setItem('gb_bal',JSON.stringify(balancas));localStorage.setItem('gb_oc',JSON.stringify(ocorrencias));}
+
+// Migração de preços — aplica valores de mercado por modelo
+function aplicarPrecosMercado(){
+  if(localStorage.getItem('gb_precos_v1')) return; // já aplicado
+  const tabela = [
+    { modelo:'9094 PLUS', marca:'TOLEDO', valor:1200 },  // avg R$1.050–R$1.350
+  ];
+  let atualizadas = 0;
+  balancas.forEach(b=>{
+    const regra = tabela.find(r=>
+      (b.modelo||'').toUpperCase().includes(r.modelo) &&
+      (b.marca||'').toUpperCase().includes(r.marca) &&
+      !b.valor  // só aplica onde não há valor cadastrado
+    );
+    if(regra){ b.valor = regra.valor; atualizadas++; }
+  });
+  if(atualizadas > 0){ salvar(); console.log(`Preços aplicados: ${atualizadas} balanças 9094 PLUS → R$1.200`); }
+  localStorage.setItem('gb_precos_v1','done');
+}
 function fmt(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fd(s){if(!s)return '—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
 function diffD(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
