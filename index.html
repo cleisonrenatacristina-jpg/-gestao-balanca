@@ -244,6 +244,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
 
 <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
 <div id="page-dashboard" class="page active cont">
+  <!-- Alertas do agente automático (Firebase) -->
+  <div id="agente-alertas" style="display:none;margin-bottom:14px"></div>
   <div id="alertas"></div>
   <div id="alertas-meta"></div>
   <div class="g5" style="margin-bottom:16px">
@@ -1096,6 +1098,7 @@ function renderSelects(){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
+  lerAlertasAgente(); // alertas do agente automático
   // Proteção: se dados estiverem vazios, força reimportação
   if(!balancas.length){
     const r=importarPlanilha();
@@ -2622,6 +2625,58 @@ async function sincronizarFirebase(){
       fetch(`${DB}/.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).catch(()=>{});
     }
   } catch(e){ console.warn('Firebase sync error:', e); }
+}
+
+// ── ALERTAS DO AGENTE AUTOMÁTICO (Firebase /alertas) ─────────────────────────
+async function lerAlertasAgente(){
+  const el = document.getElementById('agente-alertas');
+  if(!el) return;
+  try{
+    const dados = await fetch(`${DB}/alertas.json`).then(r=>r.json());
+    if(!dados || (!dados.criticos && !dados.atencao)) { el.style.display='none'; return; }
+
+    const dt = dados.timestamp
+      ? new Date(dados.timestamp).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})
+      : '—';
+
+    let html = '';
+    if(dados.criticos > 0){
+      const tags = (dados.lista||[]).filter(x=>x.nivel==='critico').map(x=>
+        `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:3px 9px;font-size:.75rem;font-weight:700;cursor:pointer"
+          onclick="goPage('ocorrencias',document.querySelector('nav button:nth-child(3)'));setTimeout(()=>goStab('ops',document.querySelector('.stab:nth-child(1)')),100)"
+          title="Ir para Ocorrências">${x.tag||x}</span>`
+      ).join(' ');
+      html += `<div style="background:#1A0A12;border-left:4px solid #C0244E;border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="color:#fff;font-weight:800;font-size:.85rem;margin-bottom:6px">🚨 ${dados.criticos} balança(s) CRÍTICA(S) — atraso na terceirizada</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">${tags||'<span style="color:rgba(255,255,255,.6);font-size:.78rem">'+dados.resumo+'</span>'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.5)">Verificado pelo agente</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4)">${dt}</div>
+        </div>
+      </div>`;
+    }
+    if(dados.atencao > 0){
+      const tags = (dados.lista||[]).filter(x=>x.nivel==='atencao').map(x=>
+        `<span style="background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 8px;font-size:.73rem;font-weight:700">${x.tag||x}</span>`
+      ).join(' ');
+      html += `<div style="background:#fef9c3;border-left:4px solid #d97706;border-radius:0 10px 10px 0;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:700;font-size:.82rem;color:#92400e">⚠️ ${dados.atencao} em ATENÇÃO — sem previsão definida</span>
+          <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">${tags}</div>
+        </div>
+        <span style="font-size:.7rem;color:#a16207">${dt}</span>
+      </div>`;
+    }
+
+    if(html){
+      el.innerHTML = html;
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  } catch(e){ /* silencioso */ }
 }
 
 // Sincroniza na abertura e a cada 30 segundos
