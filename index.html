@@ -91,6 +91,26 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 .stab{background:transparent;border:none;padding:8px 16px;border-radius:7px;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s}
 .stab.active{background:#fff;color:var(--pd);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .stab-page{display:none}.stab-page.active{display:block}
+/* Step cards */
+.step-col{display:flex;flex-direction:column;gap:14px}
+.step-card{background:#fff;border-radius:10px;border:1px solid var(--bdr);box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden}
+.step-head{padding:14px 16px 12px;border-bottom:1px solid var(--bdr)}
+.step-num{font-size:.95rem;font-weight:800;color:var(--pd);letter-spacing:.01em}
+.step-lbl{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;margin-top:8px}
+.step-body{padding:14px 16px}
+.step-body input,.step-body select,.step-body textarea{background:#fff;border:1.5px solid #d1d5db;border-radius:7px;padding:10px 12px;font-size:.9rem;width:100%}
+.step-body input:focus,.step-body select:focus,.step-body textarea:focus{border-color:var(--p);outline:none}
+.step-tag{font-size:1rem!important;font-weight:700!important;letter-spacing:.04em!important}
+.step-btn{width:100%;padding:12px;border:none;border-radius:7px;font-size:.85rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;margin-top:12px;transition:all .2s}
+.sbtn-blue{background:var(--p);color:#fff}.sbtn-blue:hover{background:var(--pd)}
+.sbtn-green{background:#059669;color:#fff}.sbtn-green:hover{background:#047857}
+.sbtn-red{background:#dc2626;color:#fff}.sbtn-red:hover{background:#b91c1c}
+.step-msg{font-size:.78rem;padding:6px 10px;border-radius:6px;margin-top:8px;display:none}
+.smsg-ok{background:#def7ec;color:#065f46}.smsg-err{background:#fde8e8;color:#991b1b}
+.painel-card{background:#fff;border-radius:10px;border:1px solid var(--bdr);box-shadow:0 1px 4px rgba(0,0,0,.06);padding:16px;position:sticky;top:14px}
+.painel-title{font-size:.78rem;font-weight:800;color:var(--pd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--bdr)}
+.oc-layout{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.oc-layout{grid-template-columns:1fr}}
 .os-s{font-size:.71rem;color:var(--muted);font-style:italic}
 .sect-head{font-size:.88rem;font-weight:700;padding:8px 12px;border-radius:7px;margin:14px 0 10px}
 .sh-blue{background:#e1effe;color:var(--pd)}.sh-green{background:#def7ec;color:var(--ok)}
@@ -149,188 +169,165 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 <!-- ═══════════════════ OCORRÊNCIAS ═══════════════════ -->
 <div id="page-ocorrencias" class="page cont">
   <div class="stabs">
-    <button class="stab active" onclick="goStab('alm',this)">📦 Almoxarifado</button>
-    <button class="stab" onclick="goStab('man',this)">🔧 Manutenção</button>
+    <button class="stab active" onclick="goStab('ops',this)">📋 Operações</button>
     <button class="stab" onclick="goStab('res',this)">📊 Resumo</button>
   </div>
 
-  <!-- SUB: ALMOXARIFADO -->
-  <div id="stab-alm" class="stab-page active">
-    <div class="g2">
-      <div class="card">
-        <h2>📦 Registro de Entrada — Almoxarifado</h2>
-        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Preencha quando receber uma balança quebrada da produção.</p>
-        <form id="form-alm">
-          <div><label>Balança (TAG) *</label><select id="a-bal" required><option value="">Selecione...</option></select></div>
-          <div class="r2">
-            <div><label>Data da Quebra *</label><input type="date" id="a-quebra" required></div>
-            <div><label>Turno</label>
-              <select id="a-turno">
+  <!-- SUB: OPERAÇÕES (etapas numeradas + painel) -->
+  <div id="stab-ops" class="stab-page active">
+    <datalist id="mf-bal-list"></datalist>
+    <div class="oc-layout">
+
+      <!-- COLUNA ESQUERDA: ETAPAS -->
+      <div class="step-col">
+
+        <!-- 1. ENTRADA DE DEFEITO -->
+        <div class="step-card">
+          <div class="step-head">
+            <div class="step-num">1. ENTRADA DE DEFEITO</div>
+          </div>
+          <div class="step-body">
+            <span class="step-lbl">TAG da Balança</span>
+            <input type="text" id="s1-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Data da Quebra</span>
+            <input type="date" id="s1-data">
+            <span class="step-lbl">Turno</span>
+            <select id="s1-turno">
+              <option value="">Selecione...</option>
+              <option>1º Turno — Manhã</option>
+              <option>2º Turno — Tarde</option>
+              <option>3º Turno — Noite</option>
+              <option>Madrugada</option>
+            </select>
+            <span class="step-lbl">Setor</span>
+            <select id="s1-setor">
+              <option value="">Selecione...</option>
+              <option>Açougue</option><option>Recebimento</option><option>Frente de Caixa</option>
+              <option>Porcionamento</option><option>Expedição</option><option>Produção</option>
+              <option>Estoque</option><option>Outro</option>
+            </select>
+            <span class="step-lbl">Problema Relatado</span>
+            <textarea id="s1-prob" rows="2" placeholder="Descreva o defeito..."></textarea>
+            <div id="s1-reinc" class="alert al-d" style="display:none;margin-top:8px">⚡ <span id="s1-reinc-txt"></span></div>
+            <div id="s1-msg" class="step-msg"></div>
+            <button class="step-btn sbtn-blue" onclick="step1Salvar()">REGISTRAR ENTRADA</button>
+          </div>
+        </div>
+
+        <!-- 2. SAÍDA PARA TERCEIRIZADA -->
+        <div class="step-card">
+          <div class="step-head">
+            <div class="step-num">2. SAÍDA PARA TERCEIRIZADA</div>
+          </div>
+          <div class="step-body">
+            <span class="step-lbl">TAG da Balança</span>
+            <input type="text" id="s2-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Data de Saída</span>
+            <input type="date" id="s2-data">
+            <span class="step-lbl">Nº da O.S. Terceiro</span>
+            <input type="text" id="s2-os" placeholder="Ex: OS-9981">
+            <div id="s2-msg" class="step-msg"></div>
+            <button class="step-btn sbtn-blue" onclick="step2Salvar()">REGISTRAR SAÍDA</button>
+          </div>
+        </div>
+
+        <!-- 3. ORÇAMENTO & DECISÃO -->
+        <div class="step-card">
+          <div class="step-head">
+            <div class="step-num">3. ORÇAMENTO &amp; DECISÃO</div>
+          </div>
+          <div class="step-body">
+            <span class="step-lbl">TAG da Balança</span>
+            <input type="text" id="s3-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Valor Orçamento (R$)</span>
+            <input type="number" id="s3-orcamento" placeholder="0,00" min="0" step="0.01">
+            <span class="step-lbl">Qtd balanças no orçamento</span>
+            <input type="number" id="s3-qtd" placeholder="0" min="0">
+            <span class="step-lbl">Decisão</span>
+            <select id="s3-decisao" onchange="toggleS3Desc()">
+              <option value="APROVADO">Aprovar Conserto</option>
+              <option value="REPROVADO">Reprovar Conserto</option>
+              <option value="DESCARTADO">Descartar Balança</option>
+            </select>
+            <span class="step-lbl">Valor Aprovado (R$)</span>
+            <input type="number" id="s3-custo" placeholder="0,00" min="0" step="0.01">
+            <span class="step-lbl">Aprovado por</span>
+            <select id="s3-aprov">
+              <option value="">Selecione...</option>
+              <option>Vinicios</option><option>Cleison</option>
+              <option>Ezequias</option><option>Hudin</option>
+            </select>
+            <span class="step-lbl">Data de Aprovação</span>
+            <input type="date" id="s3-data-aprov">
+            <div id="s3-desc-bloco" style="display:none">
+              <span class="step-lbl">Quem autorizou descarte</span>
+              <select id="s3-q-desc">
                 <option value="">Selecione...</option>
-                <option value="Manhã">Manhã</option>
-                <option value="Tarde">Tarde</option>
-                <option value="Noite">Noite</option>
-                <option value="Madrugada">Madrugada</option>
+                <option>Vinicios</option><option>Cleison</option>
+                <option>Ezequias</option><option>Hudin</option>
               </select>
             </div>
+            <div id="s3-msg" class="step-msg"></div>
+            <button class="step-btn sbtn-blue" onclick="step3Salvar()">SALVAR DECISÃO</button>
           </div>
-          <div><label>Setor onde estava a balança</label><input type="text" id="a-setor" placeholder="Ex: Açougue, Frente de caixa, Recebimento..."></div>
-          <div><label>Problema constatado</label><textarea id="a-problema" rows="3" placeholder="Descreva o problema identificado na balança..."></textarea></div>
-          <div id="aviso-reinc" class="alert al-d" style="display:none">⚡ <span id="aviso-txt"></span></div>
-          <button type="submit" class="btn btn-p">Registrar entrada</button>
-        </form>
-      </div>
-      <div class="card">
-        <h2>Últimas entradas registradas</h2>
-        <div id="t-alm-rec"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SUB: MANUTENÇÃO -->
-  <div id="stab-man" class="stab-page">
-    <div class="g2">
-
-      <!-- FORMULÁRIO MANUTENÇÃO -->
-      <div class="card">
-        <h2>🔧 Registro da Manutenção</h2>
-
-        <!-- Campo de busca por TAG -->
-        <div style="margin-bottom:10px">
-          <label>Digite a TAG da balança</label>
-          <div style="position:relative">
-            <input type="text" id="mf-bal-txt" list="mf-bal-list"
-              placeholder="Ex: AS-BL-185"
-              style="width:100%;padding:10px 12px;font-size:.95rem;font-weight:600;letter-spacing:.03em;border:2px solid var(--bdr);border-radius:8px;background:#f9fafb"
-              oninput="onTagInput()" autocomplete="off">
-            <datalist id="mf-bal-list"></datalist>
-            <!-- TAG encontrada: mostra chip -->
-            <div id="tag-found-chip" style="display:none;margin-top:6px;font-size:.8rem;background:#e1effe;color:var(--pd);border-radius:6px;padding:5px 10px;font-weight:600"></div>
-          </div>
-          <!-- Campo oculto guarda o ID da balança selecionada -->
-          <input type="hidden" id="mf-bal">
-        </div>
-        <div id="man-oc-wrap" style="display:none;margin-bottom:6px">
-          <label>Selecione a ocorrência desta balança</label>
-          <select id="man-oc-sel" onchange="carregarOcManut()"
-            style="width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:7px;font-size:.88rem">
-            <option value="">— selecione —</option>
-          </select>
-        </div>
-        <!-- Botão de nova ocorrência -->
-        <div id="btn-nova-oc-wrap" style="display:none;margin-bottom:14px">
-          <button type="button" class="btn btn-p" style="width:100%;background:#7c3aed;font-size:.85rem"
-            onclick="selecionarNova()">
-            ➕ Criar nova ocorrência para esta TAG (sem romaneio)
-          </button>
         </div>
 
-        <!-- Bloco: info almoxarifado (readonly) -->
-        <div id="man-info-alm" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:11px;margin-bottom:14px;font-size:.81rem">
-          <div style="font-weight:700;color:var(--pd);margin-bottom:6px">📦 Registrado pelo Almoxarifado</div>
-          <div class="r3" style="gap:8px">
-            <div><span style="color:var(--muted)">Data quebra</span><br><strong id="mi-quebra">—</strong></div>
-            <div><span style="color:var(--muted)">Turno</span><br><strong id="mi-turno">—</strong></div>
-            <div><span style="color:var(--muted)">Setor</span><br><strong id="mi-setor">—</strong></div>
+        <!-- 4. RETORNO PARA FÁBRICA -->
+        <div class="step-card">
+          <div class="step-head">
+            <div class="step-num">4. RETORNO PARA FÁBRICA</div>
           </div>
-          <div style="margin-top:7px"><span style="color:var(--muted)">Problema constatado</span><br><strong id="mi-problema">—</strong></div>
+          <div class="step-body">
+            <span class="step-lbl">TAG da Balança</span>
+            <input type="text" id="s4-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Previsão de Chegada</span>
+            <input type="date" id="s4-previsao">
+            <span class="step-lbl">Data de Retorno</span>
+            <input type="date" id="s4-retorno">
+            <span class="step-lbl">Quem acompanhou o teste</span>
+            <input type="text" id="s4-acomp" placeholder="Nome do responsável">
+            <span class="step-lbl">Quem validou</span>
+            <input type="text" id="s4-validou" placeholder="Nome do responsável">
+            <div id="s4-msg" class="step-msg"></div>
+            <button class="step-btn sbtn-green" onclick="step4Salvar()">REGISTRAR RETORNO</button>
+          </div>
         </div>
 
-        <div id="man-vazio" style="color:var(--muted);font-size:.84rem;text-align:center;padding:28px 0">
-          Selecione uma TAG e depois a ocorrência para preencher.
+        <!-- 5. DESCARTE DEFINITIVO -->
+        <div class="step-card">
+          <div class="step-head">
+            <div class="step-num" style="color:#dc2626">5. DESCARTE DEFINITIVO</div>
+          </div>
+          <div class="step-body">
+            <span class="step-lbl">TAG da Balança</span>
+            <input type="text" id="s5-tag" list="mf-bal-list" class="step-tag" placeholder="Ex: AS-BL-185" autocomplete="off">
+            <span class="step-lbl">Data do Descarte</span>
+            <input type="date" id="s5-data">
+            <span class="step-lbl">Quem autorizou</span>
+            <select id="s5-quem">
+              <option value="">Selecione...</option>
+              <option>Vinicios</option><option>Cleison</option>
+              <option>Ezequias</option><option>Hudin</option>
+            </select>
+            <span class="step-lbl">Motivo do Descarte</span>
+            <textarea id="s5-motivo" rows="2" placeholder="Ex: Custo de reparo inviável..."></textarea>
+            <div id="s5-msg" class="step-msg"></div>
+            <button class="step-btn sbtn-red" onclick="step5Salvar()">CONFIRMAR DESCARTE</button>
+          </div>
         </div>
 
-        <form id="form-man" style="display:none;flex-direction:column;gap:0">
+      </div><!-- /step-col -->
 
-          <!-- ETAPA 1: SAÍDA -->
-          <div style="background:#eff6ff;border-left:4px solid var(--p);border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
-            <div style="font-size:.8rem;font-weight:700;color:var(--pd);margin-bottom:8px">📤 ETAPA 1 — Saída para a Terceirizada</div>
-            <div>
-              <label>Data de Saída p/ terceirizada</label>
-              <input type="date" id="m-saida">
-            </div>
-          </div>
-
-          <!-- ETAPA 2: ORÇAMENTO -->
-          <div style="background:#fefce8;border-left:4px solid #ca8a04;border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
-            <div style="font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:8px">💰 ETAPA 2 — Orçamento da Terceirizada</div>
-            <div class="r2">
-              <div><label>Valor do Orçamento (R$)</label><input type="number" id="m-orcamento" placeholder="0,00" min="0" step="0.01"></div>
-              <div><label>Qtd balanças no orçamento</label><input type="number" id="m-qtd-orcamento" placeholder="0" min="0"></div>
-            </div>
-          </div>
-
-          <!-- ETAPA 3: APROVAÇÃO -->
-          <div style="background:#f0fdf4;border-left:4px solid var(--ok);border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px">
-            <div style="font-size:.8rem;font-weight:700;color:var(--ok);margin-bottom:8px">✅ ETAPA 3 — Aprovação</div>
-            <div class="r2">
-              <div><label>N° O.S.</label><input type="text" id="m-os" placeholder="Ex: 12333"></div>
-              <div><label>Status</label>
-                <select id="m-status" onchange="toggleDescForm()">
-                  <option value="AGUARDANDO APROVAÇÃO">Aguardando aprovação</option>
-                  <option value="APROVADO">Aprovado</option>
-                  <option value="REPROVADO">Reprovado</option>
-                  <option value="DESCARTADO">Descartado</option>
-                </select>
-              </div>
-            </div>
-            <div class="r3" style="margin-top:8px">
-              <div><label>Valor Aprovado (R$)</label><input type="number" id="m-custo" placeholder="0,00" min="0" step="0.01"></div>
-              <div><label>Quem aprovou</label>
-                <select id="m-aprovador">
-                  <option value="">Selecione...</option>
-                  <option value="Vinicios">Vinicios</option>
-                  <option value="Cleison">Cleison</option>
-                  <option value="Ezequias">Ezequias</option>
-                  <option value="Hudin">Hudin</option>
-                </select>
-              </div>
-              <div><label>Data de Aprovação</label><input type="date" id="m-aprov-data"></div>
-            </div>
-            <div id="bloco-desc-form" style="display:none;margin-top:8px">
-              <div class="r2">
-                <div><label>Quem autorizou o descarte</label>
-                  <select id="m-q-desc">
-                    <option value="">Selecione...</option>
-                    <option value="Vinicios">Vinicios</option>
-                    <option value="Cleison">Cleison</option>
-                    <option value="Ezequias">Ezequias</option>
-                    <option value="Hudin">Hudin</option>
-                  </select>
-                </div>
-                <div><label>Data do Descarte</label><input type="date" id="m-data-desc"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ETAPA 4: CHEGADA -->
-          <div style="background:#fdf4ff;border-left:4px solid #9333ea;border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:14px">
-            <div style="font-size:.8rem;font-weight:700;color:#7c3aed;margin-bottom:8px">📥 ETAPA 4 — Chegada / Retorno</div>
-            <div class="r2">
-              <div><label>Previsão de Chegada</label><input type="date" id="m-previsao"></div>
-              <div><label>Data de Chegada (balança voltou)</label><input type="date" id="m-retorno"></div>
-            </div>
-            <div class="r2" style="margin-top:8px">
-              <div><label>Quem acompanhou o teste</label><input type="text" id="m-acomp-teste" placeholder="Nome do responsável"></div>
-              <div><label>Quem validou</label><input type="text" id="m-validou" placeholder="Nome do responsável"></div>
-            </div>
-          </div>
-
-          <div><label>Observação</label><textarea id="m-obs" rows="2" placeholder="Opcional"></textarea></div>
-          <button type="submit" class="btn btn-p" style="margin-top:12px">Salvar dados da manutenção</button>
-        </form>
-      </div>
-
-      <!-- PAINEL DIREITO -->
-      <div class="card">
-        <h2>📊 Painel — Terceirizada</h2>
-        <div class="frow">
-          <div class="f"><label>Mês da saída</label><input type="month" id="mf-mes" oninput="renderManPend()"></div>
+      <!-- COLUNA DIREITA: PAINEL ATIVO -->
+      <div class="painel-card">
+        <div class="painel-title">PAINEL ATIVO DE OCORRÊNCIAS</div>
+        <div class="frow" style="margin-bottom:10px">
+          <div class="f"><label>Mês</label><input type="month" id="mf-mes" oninput="renderManPend()" style="padding:6px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.8rem"></div>
           <div class="f"><label>Status</label>
-            <select id="mf-status" onchange="renderManPend()">
+            <select id="mf-status" onchange="renderManPend()" style="padding:6px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.8rem">
               <option value="">Todos</option>
-              <option value="PENDENTE">Pendente (sem OS)</option>
-              <option value="AGUARDANDO APROVAÇÃO">Aguardando aprovação</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="AGUARDANDO APROVAÇÃO">Aguardando</option>
               <option value="APROVADO">Aprovado</option>
               <option value="REPROVADO">Reprovado</option>
               <option value="DESCARTADO">Descartado</option>
@@ -338,30 +335,27 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
           </div>
           <button class="btn btn-o btn-sm" onclick="limparMF()">Limpar</button>
         </div>
-
         <!-- Contadores -->
-        <div class="g3" style="margin-bottom:12px">
-          <div class="stat"><div class="v" id="mv-entradas">0</div><div class="l">📤 Foram p/ terceirizada</div></div>
-          <div class="stat grn"><div class="v" id="mv-voltaram">0</div><div class="l">📥 Voltaram</div></div>
-          <div class="stat red"><div class="v" id="mv-fora">0</div><div class="l">⏳ Ainda na terceirizada</div></div>
+        <div class="g3" style="margin-bottom:10px">
+          <div class="stat" style="padding:10px"><div class="v" style="font-size:1.4rem" id="mv-entradas">0</div><div class="l">📤 Foram</div></div>
+          <div class="stat grn" style="padding:10px"><div class="v" style="font-size:1.4rem" id="mv-voltaram">0</div><div class="l">📥 Voltaram</div></div>
+          <div class="stat red" style="padding:10px"><div class="v" style="font-size:1.4rem" id="mv-fora">0</div><div class="l">⏳ Fora</div></div>
         </div>
-
-        <!-- Chips TAGs ainda fora -->
-        <div id="bloco-fora" style="display:none;margin-bottom:12px">
-          <div style="font-size:.78rem;font-weight:700;color:var(--danger);margin-bottom:7px">⏳ TAGs ainda na terceirizada:</div>
-          <div id="chips-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <!-- Chips ainda fora -->
+        <div id="bloco-fora" style="display:none;margin-bottom:10px">
+          <div style="font-size:.74rem;font-weight:700;color:var(--danger);margin-bottom:6px">⏳ Ainda na terceirizada:</div>
+          <div id="chips-fora" style="display:flex;flex-wrap:wrap;gap:5px"></div>
         </div>
-
-        <!-- Balanças que entraram (registradas pelo almoxarifado, aguardando manutenção) -->
-        <div id="bloco-aguardando" style="margin-bottom:12px">
-          <div style="font-size:.78rem;font-weight:700;color:var(--pd);margin-bottom:7px">🔔 Aguardando ação da manutenção (sem saída registrada):</div>
-          <div id="chips-aguardando" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <!-- Chips aguardando -->
+        <div id="bloco-aguardando" style="margin-bottom:10px">
+          <div style="font-size:.74rem;font-weight:700;color:var(--pd);margin-bottom:6px">🔔 Aguardando saída:</div>
+          <div id="chips-aguardando" style="display:flex;flex-wrap:wrap;gap:5px"></div>
         </div>
-
         <div id="t-man-pend"></div>
       </div>
-    </div>
-  </div>
+
+    </div><!-- /oc-layout -->
+  </div><!-- /stab-ops -->
 
   <!-- SUB: RESUMO -->
   <div id="stab-res" class="stab-page">
@@ -370,11 +364,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
       <div class="stat ora"><div class="v" id="rs-aguard">0</div><div class="l">Aguardando aprovação</div></div>
       <div class="stat red"><div class="v" id="rs-reprov">0</div><div class="l">Reprovadas</div></div>
     </div>
-    <div class="g2">
+    <div class="g2" style="margin-bottom:16px">
       <div class="stat pur"><div class="v" id="rs-desc">0</div><div class="l">Descartadas</div></div>
-      <div class="stat"><div class="v" id="rs-ret">0</div><div class="l">Retornaram (com data entrega)</div></div>
+      <div class="stat"><div class="v" id="rs-ret">0</div><div class="l">Retornaram</div></div>
     </div>
-    <div class="card" style="margin-top:16px"><h2>🗑 Balanças Descartadas</h2><div id="t-descartadas"></div></div>
+    <div class="card"><h2>🗑 Balanças Descartadas</h2><div id="t-descartadas"></div></div>
     <div class="card"><h2>📋 Todas as ocorrências</h2>
       <div class="frow">
         <div class="f"><label>Mês</label><input type="month" id="rf-mes"></div>
@@ -393,6 +387,21 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
       <div id="t-todas"></div>
     </div>
   </div>
+
+  <!-- Campos ocultos para compatibilidade com funções existentes -->
+  <input type="hidden" id="mf-bal">
+  <input type="hidden" id="m-os"><input type="hidden" id="m-saida"><input type="hidden" id="m-orcamento">
+  <input type="hidden" id="m-qtd-orcamento"><input type="hidden" id="m-custo"><input type="hidden" id="m-aprov-data">
+  <input type="hidden" id="m-aprovador"><input type="hidden" id="m-status"><input type="hidden" id="m-q-desc">
+  <input type="hidden" id="m-data-desc"><input type="hidden" id="m-previsao"><input type="hidden" id="m-retorno">
+  <input type="hidden" id="m-acomp-teste"><input type="hidden" id="m-validou"><input type="hidden" id="m-obs">
+  <input type="hidden" id="man-oc-sel"><input type="hidden" id="tag-found-chip">
+  <input type="hidden" id="man-info-alm"><input type="hidden" id="man-vazio">
+  <input type="hidden" id="btn-nova-oc-wrap"><input type="hidden" id="man-oc-wrap">
+  <input type="hidden" id="a-bal"><input type="hidden" id="a-quebra"><input type="hidden" id="a-turno">
+  <input type="hidden" id="a-setor"><input type="hidden" id="a-problema">
+  <input type="hidden" id="aviso-reinc"><input type="hidden" id="aviso-txt">
+
 </div>
 
 <!-- ═══════════════════ BALANÇAS ═══════════════════ -->
@@ -846,13 +855,13 @@ function renderSelects(){
     if(prev)el.value=prev;
   });
 
-  // Manutenção — popula datalist com todas as TAGs
+  // Datalist TAG para todas as etapas
   const dlEl=document.getElementById('mf-bal-list');
-  if(dlEl){
-    // value = só a TAG (o que entra no campo ao selecionar)
-    // texto = TAG + modelo para facilitar a busca visual
-    dlEl.innerHTML=s.map(b=>`<option value="${b.tag}">${b.tag}${b.modelo?' — '+b.modelo:''}${b.marca?' '+b.marca:''}</option>`).join('');
-  }
+  if(dlEl) dlEl.innerHTML=s.map(b=>`<option value="${b.tag}">${b.tag}${b.modelo?' — '+b.modelo:''}${b.marca?' '+b.marca:''}</option>`).join('');
+
+  // Relatório
+  const rEl=document.getElementById('r-bal');
+  if(rEl){ const p=rEl.value; rEl.innerHTML='<option value="">Todas</option>'+optsAll; if(p)rEl.value=p; }
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -1531,11 +1540,177 @@ function renderAll(){
   if(pg==='page-balancas')renderBalancas();
   if(pg==='page-ocorrencias'){
     const st=document.querySelector('.stab-page.active')?.id;
-    if(st==='stab-alm')renderAlm();
-    if(st==='stab-man')renderMan();
+    if(st==='stab-ops'){ renderManPend(); initStepDates(); }
     if(st==='stab-res')renderResumo();
   }
 }
+// ── FUNÇÕES DAS 5 ETAPAS ─────────────────────────────────────────────────────
+
+function stepMsg(id, txt, tipo='ok'){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=txt;
+  el.className='step-msg smsg-'+tipo;
+  el.style.display='block';
+  if(tipo==='ok') setTimeout(()=>{el.style.display='none';},3000);
+}
+
+function findBal(tag){
+  const t=(tag||'').trim().toUpperCase();
+  return balancas.find(b=>b.tag===t || (t.length>=4 && b.tag.startsWith(t)));
+}
+
+function findOcAtiva(balId, filtro){
+  return ocorrencias
+    .filter(o=>o.balancaId===balId)
+    .sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''))
+    .find(filtro);
+}
+
+function step1Salvar(){
+  const tag=document.getElementById('s1-tag').value;
+  const bal=findBal(tag);
+  if(!bal){stepMsg('s1-msg','TAG não encontrada. Verifique e tente novamente.','err');return;}
+  const dataQ=document.getElementById('s1-data').value;
+  if(!dataQ){stepMsg('s1-msg','Informe a data da quebra.','err');return;}
+  // Alerta de reincidência
+  const reinc=detectReinc(bal.id,dataQ);
+  if(reinc){
+    document.getElementById('s1-reinc-txt').textContent=`Balança voltou do conserto em ${fd(reinc.oc.dataRetorno)} e quebrou em apenas ${reinc.dias} dia(s)!`;
+    document.getElementById('s1-reinc').style.display='flex';
+  } else { document.getElementById('s1-reinc').style.display='none'; }
+  const oc={
+    id:uid(),balancaId:bal.id,
+    numeroOS:'',dataQuebra:dataQ,
+    turno:document.getElementById('s1-turno').value,
+    setor:document.getElementById('s1-setor').value,
+    problemaConstatado:document.getElementById('s1-prob').value.trim(),
+    dataRetirada:null,dataAprovacao:null,previsaoChegada:null,
+    status:'AGUARDANDO APROVAÇÃO',aprovadoPor:'',dataRetorno:null,custo:0,
+    descartado:false,quemDescartou:'',dataDescarte:null,capDiv:bal.capDiv||'',obs:'',
+    valorOrcamento:0,qtdOrcamento:0,quemAcompanhouTeste:'',quemValidou:''
+  };
+  // Envia ao Firebase também
+  fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    tag:bal.tag,dataQuebra:dataQ,turno:oc.turno,setor:oc.setor,problema:oc.problemaConstatado,status:'AGUARDANDO',timestamp:Date.now()
+  })}).then(r=>r.json()).then(res=>{if(res.name)oc.fbId=res.name;}).catch(()=>{});
+  ocorrencias.push(oc);salvar();
+  document.getElementById('s1-tag').value='';
+  document.getElementById('s1-data').value=new Date().toISOString().slice(0,10);
+  document.getElementById('s1-turno').value='';
+  document.getElementById('s1-setor').value='';
+  document.getElementById('s1-prob').value='';
+  stepMsg('s1-msg',`✅ Balança ${bal.tag} registrada com sucesso!`);
+  renderManPend();renderDashboard();
+}
+
+function step2Salvar(){
+  const tag=document.getElementById('s2-tag').value;
+  const bal=findBal(tag);
+  if(!bal){stepMsg('s2-msg','TAG não encontrada.','err');return;}
+  const data=document.getElementById('s2-data').value;
+  if(!data){stepMsg('s2-msg','Informe a data de saída.','err');return;}
+  const oc=findOcAtiva(bal.id, o=>!o.dataRetirada);
+  if(!oc){stepMsg('s2-msg','Nenhuma ocorrência pendente de saída para esta TAG.','err');return;}
+  oc.dataRetirada=data;
+  oc.numeroOS=document.getElementById('s2-os').value.trim();
+  salvar();
+  document.getElementById('s2-tag').value='';
+  document.getElementById('s2-data').value='';
+  document.getElementById('s2-os').value='';
+  stepMsg('s2-msg',`✅ Saída de ${bal.tag} registrada!`);
+  renderManPend();
+}
+
+function step3Salvar(){
+  const tag=document.getElementById('s3-tag').value;
+  const bal=findBal(tag);
+  if(!bal){stepMsg('s3-msg','TAG não encontrada.','err');return;}
+  const decisao=document.getElementById('s3-decisao').value;
+  const oc=findOcAtiva(bal.id, o=>o.dataRetirada&&o.status!=='DESCARTADO'&&!o.dataRetorno)||
+           findOcAtiva(bal.id, o=>!o.dataRetorno);
+  if(!oc){stepMsg('s3-msg','Nenhuma ocorrência ativa para esta TAG.','err');return;}
+  oc.valorOrcamento=parseFloat(document.getElementById('s3-orcamento').value)||0;
+  oc.qtdOrcamento=parseInt(document.getElementById('s3-qtd').value)||0;
+  oc.status=decisao;
+  oc.custo=parseFloat(document.getElementById('s3-custo').value)||0;
+  oc.aprovadoPor=document.getElementById('s3-aprov').value;
+  oc.dataAprovacao=document.getElementById('s3-data-aprov').value||null;
+  if(decisao==='DESCARTADO'){
+    oc.descartado=true;
+    oc.quemDescartou=document.getElementById('s3-q-desc').value;
+    oc.dataDescarte=new Date().toISOString().slice(0,10);
+  }
+  // Atualiza Firebase
+  if(oc.fbId) fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:oc.status,custo:oc.custo})}).catch(()=>{});
+  salvar();
+  document.getElementById('s3-tag').value='';
+  stepMsg('s3-msg',`✅ Decisão "${decisao}" salva para ${bal.tag}!`);
+  renderManPend();renderDashboard();
+}
+
+function step4Salvar(){
+  const tag=document.getElementById('s4-tag').value;
+  const bal=findBal(tag);
+  if(!bal){stepMsg('s4-msg','TAG não encontrada.','err');return;}
+  const oc=findOcAtiva(bal.id, o=>o.dataRetirada&&!o.dataRetorno);
+  if(!oc){stepMsg('s4-msg','Nenhuma balança em conserto para esta TAG.','err');return;}
+  oc.previsaoChegada=document.getElementById('s4-previsao').value||null;
+  oc.dataRetorno=document.getElementById('s4-retorno').value||null;
+  oc.quemAcompanhouTeste=document.getElementById('s4-acomp').value.trim();
+  oc.quemValidou=document.getElementById('s4-validou').value.trim();
+  if(oc.dataRetorno&&oc.status!=='REPROVADO'&&oc.status!=='DESCARTADO') oc.status='APROVADO';
+  if(oc.fbId) fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
+  salvar();
+  document.getElementById('s4-tag').value='';
+  document.getElementById('s4-retorno').value='';
+  stepMsg('s4-msg',`✅ Retorno de ${bal.tag} registrado!`);
+  renderManPend();renderDashboard();
+}
+
+function step5Salvar(){
+  const tag=document.getElementById('s5-tag').value;
+  const bal=findBal(tag);
+  if(!bal){stepMsg('s5-msg','TAG não encontrada.','err');return;}
+  if(!confirm(`Confirmar DESCARTE DEFINITIVO da balança ${bal.tag}?`))return;
+  const oc=findOcAtiva(bal.id, o=>true)||{id:uid(),balancaId:bal.id,numeroOS:'',dataQuebra:new Date().toISOString().slice(0,10),status:'DESCARTADO',descartado:true,custo:0};
+  oc.status='DESCARTADO';
+  oc.descartado=true;
+  oc.dataDescarte=document.getElementById('s5-data').value||new Date().toISOString().slice(0,10);
+  oc.quemDescartou=document.getElementById('s5-quem').value;
+  oc.obs=document.getElementById('s5-motivo').value.trim();
+  if(!ocorrencias.find(o=>o.id===oc.id)) ocorrencias.push(oc);
+  salvar();
+  document.getElementById('s5-tag').value='';
+  document.getElementById('s5-data').value='';
+  document.getElementById('s5-motivo').value='';
+  stepMsg('s5-msg',`🗑 Balança ${bal.tag} marcada como descartada.`);
+  renderManPend();renderDashboard();
+}
+
+function toggleS3Desc(){
+  const v=document.getElementById('s3-decisao').value;
+  const el=document.getElementById('s3-desc-bloco');
+  if(el)el.style.display=v==='DESCARTADO'?'block':'none';
+}
+
+// Define hoje nas datas padrão das etapas
+function initStepDates(){
+  const hoje=new Date().toISOString().slice(0,10);
+  ['s1-data','s2-data','s4-retorno','s5-data'].forEach(id=>{
+    const el=document.getElementById(id);if(el&&!el.value)el.value=hoje;
+  });
+}
+
+// Mantém compatibilidade com funções antigas
+function goStab(id,btn){
+  document.querySelectorAll('.stab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('stab-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  renderAll();
+}
+
 document.getElementById('mes-f').value=mesAtual();
 
 // ── ANÁLISE DE CUSTO / DEPRECIAÇÃO / IA ──────────────────────────────────────
