@@ -320,7 +320,12 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
 
       <!-- COLUNA DIREITA: PAINEL ATIVO -->
       <div class="painel-card">
-        <div class="painel-title">PAINEL ATIVO DE OCORRÊNCIAS</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="painel-title" style="margin-bottom:0">PAINEL ATIVO DE OCORRÊNCIAS</div>
+          <button onclick="sincAgora()" id="btn-sinc" title="Sincronizar com almoxarifado"
+            style="background:#e1effe;color:var(--pd);border:1px solid #93c5fd;border-radius:6px;padding:5px 10px;font-size:.74rem;font-weight:700;cursor:pointer">🔄 Sincronizar</button>
+        </div>
+        <div id="sinc-status" style="font-size:.72rem;color:var(--muted);margin-bottom:8px"></div>
         <div class="frow" style="margin-bottom:10px">
           <div class="f"><label>Mês</label><input type="month" id="mf-mes" oninput="renderManPend()" style="padding:6px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.8rem"></div>
           <div class="f"><label>Status</label>
@@ -540,11 +545,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
       <button class="btn btn-o" onclick="fecharM('m-ia')">Fechar</button>
       <button class="btn-ia" id="btn-ia-analisar" onclick="rodarIA()">🤖 Analisar com IA</button>
     </div>
-    <div style="margin-top:10px;font-size:.72rem;color:var(--muted);border-top:1px solid var(--bdr);padding-top:8px">
-      🔑 Chave API Claude: <input type="password" id="ia-key" placeholder="sk-ant-..." style="width:220px;padding:4px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.78rem">
-      <button onclick="salvarKey()" style="margin-left:6px;padding:4px 10px;background:var(--p);color:#fff;border:none;border-radius:5px;font-size:.72rem;cursor:pointer">Salvar</button>
-      <span id="key-ok" style="color:var(--ok);margin-left:6px;font-size:.72rem"></span>
-    </div>
+    <div id="key-ok" style="font-size:.75rem;color:var(--muted);margin-top:8px;text-align:right"></div>
   </div>
 </div>
 
@@ -1436,21 +1437,20 @@ function varreduraCompleta(){
 
 async function executarVarredura(){
   const key = localStorage.getItem('claude_api_key')||'';
-  if(!key){ alert('Configure a chave IA primeiro.'); abrirConfigIA(); return; }
+  if(!key){ fecharM('m-varredura'); setTimeout(abrirConfigIA,100); return; }
 
   const soComCusto = document.getElementById('vf-com-custo').checked;
   const soComValor = document.getElementById('vf-com-valor').checked;
   const ano = new Date().getFullYear().toString();
 
-  // Coleta dados de todas as balanças
   const dados = balancas.map(b=>{
-    const ocs  = ocorrencias.filter(o=>o.balancaId===b.id);
+    const ocs      = ocorrencias.filter(o=>o.balancaId===b.id);
     const custoAno = ocs.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(ano)).reduce((s,o)=>s+(o.custo||0),0);
     const custoTotal = ocs.reduce((s,o)=>s+(o.custo||0),0);
-    const depr = analisarDepr(b);
+    const depr     = analisarDepr(b);
     return { b, ocs, custoAno, custoTotal, depr };
   }).filter(x=>{
-    if(soComCusto && x.custoAno === 0) return false;
+    if(soComCusto && x.custoAno===0) return false;
     if(soComValor && !x.b.valor) return false;
     return true;
   });
@@ -1464,45 +1464,42 @@ async function executarVarredura(){
   btn.disabled=true; btn.textContent='⏳ Analisando '+dados.length+' balanças...';
   document.getElementById('varredura-corpo').innerHTML=`
     <div class="ia-loading" style="padding:40px">
-      🤖 Claude Haiku está analisando <strong>${dados.length} balanças</strong>...<br>
-      <small style="color:var(--muted);margin-top:8px;display:block">Isso pode levar alguns segundos.</small>
+      🤖 Analisando <strong>${dados.length} balanças</strong>...<br>
+      <small style="color:var(--muted);margin-top:6px;display:block">Aguarde alguns segundos.</small>
     </div>`;
 
-  // Monta prompt com dados de todas as balanças
   const linhas = dados.map(({b,ocs,custoAno,custoTotal,depr})=>{
-    const pct = b.valor ? (custoAno/b.valor*100).toFixed(0)+'%' : 'sem valor';
-    const deprTxt = depr ? (depr.depreciada?'DEPRECIADA':'Em uso '+depr.pctDepr.toFixed(0)+'%') : 'sem data';
-    return `${b.tag} | Modelo: ${b.modelo||'?'} ${b.marca||''} | Setor: ${b.setor||'-'} | Quebras: ${ocs.length} | Custo ${ano}: R$${custoAno} (${pct} do valor R$${b.valor||0}) | Custo total: R$${custoTotal} | Depreciação: ${deprTxt}`;
+    const pct    = b.valor?(custoAno/b.valor*100).toFixed(0)+'%':'sem valor';
+    const deprTxt= depr?(depr.depreciada?'DEPRECIADA':'Em_uso_'+depr.pctDepr.toFixed(0)+'%'):'sem_data';
+    return `${b.tag}|${b.modelo||'?'} ${b.marca||''}|${b.setor||'-'}|quebras:${ocs.length}|custo_ano:${custoAno}|pct:${pct}|custo_total:${custoTotal}|${deprTxt}`;
   }).join('\n');
 
-  const prompt = `Você é especialista em gestão de equipamentos de pesagem para indústria alimentícia (LivUp).
+  const prompt = `Você é especialista em gestão de balanças industriais. Classifique cada balança abaixo em uma das 4 categorias e retorne APENAS JSON válido, sem texto antes ou depois.
 
-Analise TODAS as balanças abaixo e classifique cada uma em uma dessas categorias:
-- ✅ OK: custo dentro do normal, manter
-- ⚠️ MONITORAR: custo elevado mas ainda viável, monitorar de perto
-- 🔴 SUBSTITUIR: custo acima de 40% do valor ou muito frequente, substituir
-- 🗑️ DESCARTADA: totalmente depreciada e com alto custo, descartar
-
-Para cada balança SUBSTITUIR ou MONITORAR, indique:
-- Se depreciada: "COMPRA DIRETA"
-- Se não depreciada: "AVALIAR COMPATIBILIDADE com setor X"
-
-BALANÇAS (${dados.length} no total):
+DADOS (tag|modelo|setor|quebras|custo_ano_atual|pct_do_valor|custo_total|depreciação):
 ${linhas}
 
-Responda em formato estruturado:
-1. Primeiro uma tabela resumida com: TAG | Status | Ação recomendada
-2. Depois liste as PRIORIDADES DE AÇÃO (apenas as que precisam de intervenção)
-3. Por fim, um RESUMO EXECUTIVO de 3-4 linhas
+REGRAS:
+- "descartar": depreciada (>5 anos) E custo alto, ou custo_ano > 80% do valor
+- "substituir": custo_ano entre 40-80% do valor; se depreciada → acao="compra_direta"; se não → acao="avaliar_compatibilidade"
+- "monitorar": custo_ano entre 20-40% do valor ou muitas quebras
+- "ok": custo dentro do normal
 
-Seja direto e objetivo. Responda em português.`;
+RETORNE SOMENTE este JSON (sem markdown, sem explicações):
+{
+  "descartar": [{"tag":"TAG","motivo":"motivo curto"}],
+  "substituir": [{"tag":"TAG","acao":"compra_direta|avaliar_compatibilidade","motivo":"motivo curto"}],
+  "monitorar":  [{"tag":"TAG","motivo":"motivo curto"}],
+  "ok":         ["TAG1","TAG2"],
+  "resumo": "3 linhas de resumo executivo para o gestor"
+}`;
 
   try{
     const resp = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key': key,
+        'x-api-key':key,
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
@@ -1512,38 +1509,61 @@ Seja direto e objetivo. Responda em português.`;
         messages:[{role:'user',content:prompt}]
       })
     });
-    if(!resp.ok){
-      const err=await resp.json();
-      throw new Error(err.error?.message||'Erro na API: '+resp.status);
-    }
-    const data = await resp.json();
-    const texto = data.content[0].text;
-    const html = texto
-      .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-      .replace(/^#{1,3} (.+)$/gm,'<h4 style="color:var(--pd);margin:12px 0 6px">$1</h4>')
-      .replace(/✅/g,'<span style="color:var(--ok)">✅</span>')
-      .replace(/⚠️/g,'<span style="color:#d97706">⚠️</span>')
-      .replace(/🔴/g,'<span style="color:var(--danger)">🔴</span>')
-      .replace(/🗑️/g,'<span style="color:#7c3aed">🗑️</span>')
-      .replace(/\n/g,'<br>');
+    if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'Erro '+resp.status);}
+    const data  = await resp.json();
+    let texto   = data.content[0].text.trim();
+    // Remove possível markdown
+    texto = texto.replace(/^```json\n?/,'').replace(/\n?```$/,'').trim();
+    window._ultimaVarredura = texto;
 
+    let r;
+    try{ r = JSON.parse(texto); }
+    catch(pe){
+      // Fallback: mostra texto sem formatação
+      document.getElementById('varredura-corpo').innerHTML=
+        `<div class="ia-resp">${texto.replace(/\n/g,'<br>')}</div>`;
+      btn.disabled=false; btn.textContent='🔍 Nova Varredura'; return;
+    }
+
+    const chipCard = (tag,cor,acao,motivo)=>
+      `<div style="background:${cor};border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-weight:700;min-width:90px">${tag}</span>
+        ${acao?`<span style="background:rgba(0,0,0,.08);border-radius:5px;padding:2px 8px;font-size:.75rem;font-weight:700;white-space:nowrap">${acao==='compra_direta'?'🛒 Compra direta':'🔍 Avaliar compatibilidade'}</span>`:''}
+        <span style="font-size:.8rem;color:#374151;flex:1">${motivo||''}</span>
+      </div>`;
+
+    const sec = (titulo,bg,cor,itens,renderFn)=>itens&&itens.length?`
+      <div style="background:${bg};border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="font-size:.85rem;font-weight:800;color:${cor};margin-bottom:10px">${titulo} <span style="font-weight:400;font-size:.78rem">(${itens.length})</span></div>
+        ${itens.map(renderFn).join('')}
+      </div>`:'';
+
+    const okList = (r.ok||[]);
     const uso = data.usage;
     document.getElementById('varredura-corpo').innerHTML=`
-      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.78rem;color:var(--ok);display:flex;justify-content:space-between">
-        <span>✅ Varredura concluída — ${dados.length} balanças analisadas</span>
-        <span style="color:var(--muted)">${uso?.input_tokens||'?'} tokens entrada · ${uso?.output_tokens||'?'} saída</span>
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-size:.78rem">
+        <span style="color:var(--ok);font-weight:700">✅ ${dados.length} balanças analisadas</span>
+        <span style="color:var(--muted)">${uso?.input_tokens||'?'} tokens</span>
       </div>
-      <div class="ia-resp" style="max-height:50vh;overflow-y:auto">${html}</div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-        <button onclick="exportarVarredura()" class="btn btn-o btn-sm">📥 Salvar relatório (.txt)</button>
-        <button onclick="document.getElementById('varredura-corpo').querySelector('.ia-resp').innerHTML=''" class="btn btn-o btn-sm" style="color:var(--danger);border-color:var(--danger)">🗑 Limpar</button>
+
+      ${sec('🗑️ DESCARTAR — Não vale mais consertar','#fde8e8','#991b1b',r.descartar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
+      ${sec('🔴 SUBSTITUIR — Custo muito elevado','#fff1f2','#c2410c',r.substituir||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)',x.acao,x.motivo))}
+      ${sec('⚠️ MONITORAR — Acompanhar de perto','#fffbeb','#92400e',r.monitorar||[],x=>chipCard(x.tag,'rgba(255,255,255,.6)','',x.motivo))}
+      ${okList.length?`<div style="background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="font-size:.85rem;font-weight:800;color:var(--ok);margin-bottom:8px">✅ EM BOA CONDIÇÃO (${okList.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${okList.map(t=>`<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:3px 10px;font-size:.78rem;font-weight:600">${t}</span>`).join('')}</div>
+      </div>`:''}
+      ${r.resumo?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px">
+        <div style="font-size:.8rem;font-weight:700;color:var(--pd);margin-bottom:6px">📋 RESUMO EXECUTIVO</div>
+        <div style="font-size:.85rem;line-height:1.6;color:#374151">${r.resumo.replace(/\n/g,'<br>')}</div>
+      </div>`:''}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button onclick="exportarVarredura()" class="btn btn-o btn-sm">📥 Exportar (.txt)</button>
       </div>`;
-    window._ultimaVarredura = texto;
   }catch(e){
     document.getElementById('varredura-corpo').innerHTML=`
-      <div class="ia-resp" style="background:#fde8e8;border-color:#fca5a5">
-        ❌ Erro: ${e.message}<br><br>
-        Verifique se a chave API está correta e tente novamente.
+      <div style="background:#fde8e8;border:1px solid #fca5a5;border-radius:8px;padding:14px;color:#991b1b;font-size:.85rem">
+        ❌ Erro: ${e.message}<br><small>Verifique a chave API e tente novamente.</small>
       </div>`;
   }
   btn.disabled=false; btn.textContent='🔍 Nova Varredura';
@@ -1567,6 +1587,22 @@ function abrirIABal(){
   const bal = findBal(tag);
   if(!bal){ alert('TAG não encontrada. Verifique e tente novamente.'); return; }
   abrirIA(bal.id);
+}
+
+// Sincronização imediata do Firebase
+async function sincAgora(){
+  const btn = document.getElementById('btn-sinc');
+  const st  = document.getElementById('sinc-status');
+  if(btn){ btn.textContent='⏳ Sincronizando...'; btn.disabled=true; }
+  try{
+    await sincronizarFirebase();
+    renderManPend();
+    const agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if(st) st.textContent = `Última sync: ${agora}`;
+  }catch(e){
+    if(st) st.textContent = '⚠️ Erro na sincronização';
+  }
+  if(btn){ btn.textContent='🔄 Sincronizar'; btn.disabled=false; }
 }
 
 function abrirConfigIA(){
@@ -1738,7 +1774,7 @@ function renderAll(){
   if(pg==='page-balancas')renderBalancas();
   if(pg==='page-ocorrencias'){
     const st=document.querySelector('.stab-page.active')?.id;
-    if(st==='stab-ops'){ renderManPend(); initStepDates(); }
+    if(st==='stab-ops'){ renderManPend(); initStepDates(); sincronizarFirebase(); }
     if(st==='stab-res')renderResumo();
   }
 }
@@ -2032,26 +2068,22 @@ function abrirIA(balId){
 
   document.getElementById('ia-corpo').innerHTML='<div class="ia-loading">Clique em <strong>🤖 Analisar com IA</strong> para obter recomendação do Claude.</div>';
 
-  // Carrega chave salva
+  // Status da chave (sem campo duplicado)
   const key = localStorage.getItem('claude_api_key')||'';
-  document.getElementById('ia-key').value = key;
-  document.getElementById('key-ok').textContent = key?'✅ Chave salva':'';
+  const keyEl = document.getElementById('key-ok');
+  if(keyEl) keyEl.textContent = key ? '🔑 Chave configurada' : '⚠️ Configure a chave IA no botão superior';
 
   document.getElementById('m-ia').classList.add('open');
 }
 
-function salvarKey(){
-  const key = document.getElementById('ia-key').value.trim();
-  localStorage.setItem('claude_api_key', key);
-  document.getElementById('key-ok').textContent = key?'✅ Salva!':'';
-}
+function salvarKey(){ /* deprecated — usa salvarConfigKey() */ }
 
 async function rodarIA(){
   const bal   = balancas.find(b=>b.id===iaBalId);
   const st    = statusCusto(bal);
   const depr  = analisarDepr(bal);
-  const key   = localStorage.getItem('claude_api_key')||document.getElementById('ia-key').value.trim();
-  if(!key){ alert('Adicione sua chave da API do Claude (sk-ant-...) no campo abaixo.'); return; }
+  const key = localStorage.getItem('claude_api_key')||'';
+  if(!key){ fecharM('m-ia'); setTimeout(abrirConfigIA, 100); return; }
 
   const ocs = ocorrencias.filter(o=>o.balancaId===bal.id);
   const ultimasOcs = ocs.slice(-5).map(o=>`  - ${fd(o.dataQuebra)}: ${o.problemaConstatado||'sem descrição'} (${fmt(o.custo)})`).join('\n');
