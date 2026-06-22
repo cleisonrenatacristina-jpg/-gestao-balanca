@@ -976,6 +976,7 @@ function init() {
 
 let {bal:balancas,oc:ocorrencias}=init();
 aplicarPrecosMercado();
+corrigirDatasInvalidas();
 let editManId=null, editBalId=null;
 const charts={};
 
@@ -987,6 +988,35 @@ function salvar(){
 }
 
 // Migração de preços — aplica valores de mercado por modelo
+function corrigirDatasInvalidas(){
+  let mudou = false;
+  ocorrencias.forEach(o=>{
+    // Corrige ano digitado errado (ex: 20226 → 2026)
+    ['dataQuebra','dataRetirada','dataRetorno','dataAprovacao','previsaoChegada','dataDescarte'].forEach(campo=>{
+      const v = o[campo];
+      if(!v) return;
+      const ano = parseInt(v.slice(0,4));
+      if(ano > 2035 || ano < 2020){
+        // Tenta corrigir removendo dígitos extras (ex: 20226 → 2026)
+        const anoStr = v.slice(0,4);
+        const anoCorrigido = anoStr.replace(/(\d{4})\d+/, '$1').slice(0,4);
+        const anoNum = parseInt(anoCorrigido);
+        if(anoNum >= 2020 && anoNum <= 2035){
+          o[campo] = anoCorrigido + v.slice(4);
+          console.warn(`Data corrigida em ${campo}: ${v} → ${o[campo]} (oc id: ${o.id})`);
+          mudou = true;
+        } else {
+          // Não conseguiu corrigir automaticamente — limpa o campo
+          o[campo] = null;
+          console.warn(`Data inválida removida em ${campo}: ${v} (oc id: ${o.id})`);
+          mudou = true;
+        }
+      }
+    });
+  });
+  if(mudou) salvar();
+}
+
 function aplicarPrecosMercado(){
   if(localStorage.getItem('gb_precos_v1')) return; // já aplicado
   const tabela = [
@@ -1048,9 +1078,23 @@ function goStab(id,btn){
 }
 
 // ── REINCIDÊNCIAS ─────────────────────────────────────────────────────────────
+function dataValida(s){
+  if(!s) return false;
+  const ano = parseInt((s||'').slice(0,4));
+  return ano >= 2020 && ano <= 2035; // ano fora deste range = digitação errada
+}
 function detectReinc(balId,dataQ,ignId=null){
-  const hist=ocorrencias.filter(o=>o.balancaId===balId&&o.id!==ignId&&o.dataRetorno).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
-  for(const o of hist){if(o.dataRetorno<dataQ){const d=diffD(o.dataRetorno,dataQ);if(d<=7)return{oc:o,dias:d};}}
+  if(!dataValida(dataQ)) return null;
+  const hist=ocorrencias.filter(o=>
+    o.balancaId===balId && o.id!==ignId &&
+    o.dataRetorno && dataValida(o.dataRetorno) // ignora datas com ano errado
+  ).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
+  for(const o of hist){
+    if(o.dataRetorno<dataQ){
+      const d=diffD(o.dataRetorno,dataQ);
+      if(d>=0 && d<=7) return{oc:o,dias:d}; // d negativo = data inválida, ignora
+    }
+  }
   return null;
 }
 function isReinc(o){return!!detectReinc(o.balancaId,o.dataQuebra,o.id);}
