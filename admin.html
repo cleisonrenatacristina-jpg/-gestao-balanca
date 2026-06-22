@@ -3,69 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ADM — Gestão de Balanças</title>
+<title>LivUp — ADM Balanças</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-:root{--p:#1a56db;--pd:#1e429f;--danger:#e02424;--warn:#f59e0b;--ok:#057a55;--bg:#f3f4f6;--card:#fff;--bdr:#e5e7eb;--txt:#111827;--muted:#6b7280}
+:root{--p:#C0244E;--pd:#8B1A39;--pl:#F9E8EF;--danger:#dc2626;--warn:#d97706;--ok:#059669;--bg:#F2F0F4;--card:#fff;--bdr:#EAE6EC;--txt:#1A0A12;--muted:#8A7890;--header:#1A0A12}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt)}
-header{background:var(--pd);color:#fff;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-header h1{font-size:1.1rem;font-weight:700}
-header span{font-size:.75rem;opacity:.75}
-.badge-adm{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;color:#fff}
-nav{background:var(--p);display:flex;gap:2px;padding:0 12px;overflow-x:auto}
-nav button{background:transparent;border:none;color:rgba(255,255,255,.8);padding:10px 15px;cursor:pointer;font-size:.83rem;font-weight:500;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
-nav button:hover{color:#fff;background:rgba(255,255,255,.1)}
-nav button.active{color:#fff;border-bottom-color:#fff}
-.cont{max-width:1300px;margin:0 auto;padding:18px 14px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+header{background:var(--header);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;box-shadow:0 2px 20px rgba(192,36,78,.25);position:sticky;top:0;z-index:50}
+.header-brand{display:flex;align-items:center;gap:14px}
+.header-logo{height:34px;width:auto;border-radius:6px}
+.header-divider{width:1px;height:24px;background:rgba(255,255,255,.2)}
+.header-title{font-size:.92rem;font-weight:700;color:#fff;letter-spacing:.02em}
+.header-sub{font-size:.7rem;color:rgba(255,255,255,.55);margin-top:1px}
+.badge-adm{background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.5);border-radius:20px;padding:4px 12px;font-size:.72rem;font-weight:700;color:#fff;letter-spacing:.04em}
+nav{background:#12070D;display:flex;gap:0;padding:0 20px;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.06)}
+nav button{background:transparent;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,.5);padding:12px 16px;cursor:pointer;font-size:.8rem;font-weight:500;white-space:nowrap;transition:all .2s;font-family:'Inter',sans-serif;letter-spacing:.01em}
+nav button:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.04)}
+nav button.active{color:#fff;border-bottom-color:var(--p);font-weight:700}
+.cont{max-width:1320px;margin:0 auto;padding:20px 16px}
 .page{display:none}.page.active{display:block}
-.card{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.card h2{font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--pd);text-transform:uppercase;letter-spacing:.04em}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:18px;margin-bottom:16px;box-shadow:0 1px 4px rgba(26,10,18,.06)}
+.card h2{font-size:.72rem;font-weight:800;margin-bottom:14px;color:var(--p);text-transform:uppercase;letter-spacing:.08em}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
 @media(max-width:900px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}}
 @media(max-width:500px){.g2,.g3,.g4,.g5{grid-template-columns:1fr}}
-.stat{background:var(--card);border-radius:10px;border:1px solid var(--bdr);padding:16px;text-align:center}
-.stat .v{font-size:1.8rem;font-weight:800;color:var(--p)}.stat .l{font-size:.74rem;color:var(--muted);margin-top:4px}
+.stat{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:16px;text-align:center;box-shadow:0 1px 4px rgba(26,10,18,.05)}
+.stat .v{font-size:2rem;font-weight:900;color:var(--p);line-height:1.1}.stat .l{font-size:.68rem;color:var(--muted);margin-top:5px;font-weight:500;letter-spacing:.03em;text-transform:uppercase}
 .stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:#d97706}.stat.pur .v{color:#7c3aed}
 table{width:100%;border-collapse:collapse;font-size:.8rem}
-thead tr{background:#f9fafb}
-th{padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--bdr)}
-td{padding:8px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle}
-tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
-.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700}
-.b-ok{background:#def7ec;color:var(--ok)}.b-bad{background:#fde8e8;color:var(--danger)}
-.b-warn{background:#fef3c7;color:#92400e}.b-info{background:#e1effe;color:var(--pd)}
+thead tr{background:#FAF8FB}
+th{padding:9px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--bdr);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+td{padding:9px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
+.b-ok{background:#d1fae5;color:#065f46}.b-bad{background:#fee2e2;color:#991b1b}
+.b-warn{background:#fef3c7;color:#92400e}.b-info{background:var(--pl);color:var(--pd)}
 .b-desc{background:#ede9fe;color:#5b21b6}.b-pend{background:#f3f4f6;color:#374151}
 .frow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
-.frow .f{display:flex;flex-direction:column;gap:4px;font-size:.79rem;font-weight:600;color:var(--muted)}
-.frow select,.frow input{padding:8px 11px;border:1px solid var(--bdr);border-radius:7px;font-size:.85rem;background:#f9fafb;width:auto;min-width:120px}
-.empty{text-align:center;padding:36px;color:var(--muted)}
+.frow .f{display:flex;flex-direction:column;gap:4px;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.frow select,.frow input{padding:8px 11px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem;background:#FAF8FB;width:auto;min-width:120px;font-family:'Inter',sans-serif}
+.empty{text-align:center;padding:36px;color:var(--muted);font-size:.88rem}
 .ch{position:relative;height:270px}
 .os-s{font-size:.71rem;color:var(--muted);font-style:italic}
-.hl td{background:#fff5f5!important}
-.hl2 td{background:#fdf4ff!important}
-.tq{font-size:.67rem;background:#fde8e8;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700}
-.disc-chip{display:inline-flex;align-items:center;gap:6px;background:#ede9fe;border:1px solid #c4b5fd;border-radius:20px;padding:4px 12px;font-size:.78rem;color:#5b21b6;font-weight:600;margin:3px}
-.sect-head{font-size:.88rem;font-weight:700;padding:8px 12px;border-radius:7px;margin:14px 0 10px}
-.sh-blue{background:#e1effe;color:var(--pd)}.sh-green{background:#def7ec;color:var(--ok)}
-/* Botões de ação */
-.btn-pdf{background:#dc2626;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
-.btn-pdf:hover{background:#b91c1c}
-.btn-print{background:#6b7280;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
-.btn-print:hover{background:#4b5563}
-.btn-o{background:transparent;border:1px solid var(--p);color:var(--p);border-radius:7px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer}
-.btn-o:hover{background:var(--p);color:#fff}
+.hl td{background:#fff5f7!important}.hl2 td{background:#fdf4ff!important}
+.tq{font-size:.67rem;background:#fee2e2;color:var(--danger);padding:2px 7px;border-radius:12px;font-weight:700}
+.disc-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pl);border:1px solid rgba(192,36,78,.2);border-radius:20px;padding:4px 12px;font-size:.78rem;color:var(--p);font-weight:600;margin:3px}
+.sect-head{font-size:.85rem;font-weight:700;padding:8px 12px;border-radius:7px;margin:14px 0 10px}
+.sh-blue{background:var(--pl);color:var(--pd)}.sh-green{background:#d1fae5;color:var(--ok)}
+.btn-pdf{background:var(--p);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;box-shadow:0 2px 8px rgba(192,36,78,.3)}
+.btn-pdf:hover{background:var(--pd);transform:translateY(-1px)}
+.btn-print{background:#1A0A12;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif}
+.btn-print:hover{background:#2d1320}
+.btn-o{background:transparent;border:1.5px solid var(--p);color:var(--p);border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-o:hover{background:var(--pl)}
 .btn-sm{padding:5px 10px;font-size:.74rem}
 .action-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.sync-bar{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:.78rem;color:var(--ok);margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.sync-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;flex-shrink:0}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-/* PRINT */
+.sync-bar{background:#FAF8FB;border:1px solid var(--bdr);border-radius:8px;padding:8px 14px;font-size:.78rem;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--p);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media print{
   header,nav,.action-bar,.sync-bar,.frow button,.no-print{display:none!important}
   .page{display:block!important}
@@ -73,24 +74,28 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
   body{background:#fff}
   .cont{padding:0}
   .ch{height:220px}
-  h1.print-title{display:block!important;font-size:1.2rem;font-weight:700;margin-bottom:16px;color:#1e429f}
+  h1.print-title{display:block!important;font-size:1.2rem;font-weight:800;margin-bottom:16px;color:var(--p)}
 }
 h1.print-title{display:none}
 </style>
 </head>
 <body>
 <header>
-  <div>
-    <h1>⚖️ Gestão de Balanças — ADM</h1>
-    <span>LivUp · Visualização somente leitura</span>
+  <div class="header-brand">
+    <img src="livup-logo.png" alt="LivUp" class="header-logo">
+    <div class="header-divider"></div>
+    <div>
+      <div class="header-title">Gestão de Balanças</div>
+      <div class="header-sub">Painel ADM · Somente visualização</div>
+    </div>
   </div>
   <span class="badge-adm">🔒 ADM</span>
 </header>
 <nav>
-  <button class="active" onclick="goPage('dashboard',this)">📊 Dashboard</button>
-  <button onclick="goPage('mes',this)">📅 Lista do Mês</button>
-  <button onclick="goPage('resumo',this)">📋 Resumo</button>
-  <button onclick="goPage('relatorio',this)">📁 Relatório</button>
+  <button class="active" onclick="goPage('dashboard',this)">Dashboard</button>
+  <button onclick="goPage('mes',this)">Lista do Mês</button>
+  <button onclick="goPage('resumo',this)">Resumo</button>
+  <button onclick="goPage('relatorio',this)">Relatório</button>
 </nav>
 
 <!-- DASHBOARD -->
