@@ -565,7 +565,14 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
       <h2>Cadastrar Balança</h2>
       <form id="form-bal">
         <div class="r3">
-          <div><label>TAG *</label><input type="text" id="b-tag" placeholder="Ex: AS-BL-185" required></div>
+          <div>
+            <label>TAG *</label>
+            <input type="text" id="b-tag" required autocomplete="off"
+              oninput="validarTagInput(this)"
+              style="font-weight:700;letter-spacing:.04em;font-size:.95rem"
+              placeholder="Próxima TAG será preenchida automaticamente">
+            <div id="b-tag-aviso" style="display:none;margin-top:5px;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700"></div>
+          </div>
           <div><label>N° de Série</label><input type="text" id="b-serie"></div>
           <div><label>Modelo</label><input type="text" id="b-modelo" placeholder="Ex: 9094 PLUS"></div>
         </div>
@@ -1115,9 +1122,36 @@ function chkReinc(){
 document.getElementById('form-bal').addEventListener('submit',function(e){
   e.preventDefault();
   const tag=document.getElementById('b-tag').value.trim().toUpperCase();
-  if(balancas.find(b=>b.tag===tag)){alert('TAG já cadastrada!');return;}
-  balancas.push({id:uid(),tag,serie:document.getElementById('b-serie').value.trim(),modelo:document.getElementById('b-modelo').value.trim(),marca:document.getElementById('b-marca').value.trim(),capDiv:document.getElementById('b-cap').value.trim(),setor:document.getElementById('b-setor').value.trim(),valor:parseFloat(document.getElementById('b-valor').value)||0});
-  salvar();this.reset();renderAll();alert('Balança cadastrada!');
+
+  // Bloqueia TAG duplicada
+  if(balancas.find(b=>b.tag===tag)){
+    const aviso=document.getElementById('b-tag-aviso');
+    if(aviso){
+      aviso.style.cssText='display:block;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:8px 12px;border-radius:7px;font-size:.82rem;font-weight:700';
+      aviso.innerHTML=`🚫 <strong>${tag}</strong> já existe! A próxima TAG disponível é <strong style="cursor:pointer;text-decoration:underline" onclick="document.getElementById('b-tag').value='${proximaTag()}';validarTagInput(document.getElementById('b-tag'))">${proximaTag()}</strong> — clique para usar`;
+    }
+    document.getElementById('b-tag').focus();
+    return;
+  }
+
+  balancas.push({
+    id:uid(), tag,
+    serie:document.getElementById('b-serie').value.trim(),
+    modelo:document.getElementById('b-modelo').value.trim(),
+    marca:document.getElementById('b-marca').value.trim(),
+    capDiv:document.getElementById('b-cap').value.trim(),
+    setor:document.getElementById('b-setor').value.trim(),
+    valor:parseFloat(document.getElementById('b-valor').value)||0
+  });
+  salvar();
+  this.reset();
+  // Já preenche o campo com a próxima TAG após cadastrar
+  setTimeout(()=>{
+    preencherProximaTag();
+    const aviso=document.getElementById('b-tag-aviso');
+    if(aviso) aviso.style.display='none';
+  }, 50);
+  renderAll();
 });
 
 // ── SELECTS ───────────────────────────────────────────────────────────────────
@@ -1619,12 +1653,51 @@ document.getElementById('rf-mes').addEventListener('change',renderResumo);
 document.getElementById('rf-status').addEventListener('change',renderResumo);
 
 // ── BALANÇAS ──────────────────────────────────────────────────────────────────
+// ── TAG: próxima sequência e validação de duplicata ──────────────────────────
+function proximaTag(){
+  // Extrai o número do prefixo "AS-BL-NNN" de todas as TAGs cadastradas
+  const nums = balancas
+    .map(b=>{ const m=(b.tag||'').match(/AS-BL-(\d+)/i); return m?parseInt(m[1]):0; })
+    .filter(n=>n>0);
+  const max = nums.length ? Math.max(...nums) : 0;
+  return `AS-BL-${max+1}`;
+}
+
+function preencherProximaTag(){
+  const input = document.getElementById('b-tag');
+  if(input && !input.value){
+    input.value = proximaTag();
+    validarTagInput(input);
+  }
+}
+
+function validarTagInput(el){
+  const val = (el.value||'').trim().toUpperCase();
+  const aviso = document.getElementById('b-tag-aviso');
+  if(!aviso) return;
+  if(!val){ aviso.style.display='none'; return; }
+  const existe = balancas.find(b=>b.tag===val);
+  if(existe){
+    aviso.style.cssText='display:block;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
+    aviso.innerHTML=`🚫 TAG <strong>${val}</strong> já está cadastrada! Use a próxima: <strong style="cursor:pointer;text-decoration:underline" onclick="document.getElementById('b-tag').value='${proximaTag()}';validarTagInput(document.getElementById('b-tag'))">${proximaTag()}</strong>`;
+    el.style.borderColor='#dc2626';
+    el.style.background='#fff5f5';
+  } else {
+    aviso.style.cssText='display:block;background:#d1fae5;color:#065f46;border:1px solid #86efac;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:600';
+    aviso.innerHTML=`✅ TAG <strong>${val}</strong> disponível`;
+    el.style.borderColor='var(--ok)';
+    el.style.background='#f0fdf4';
+  }
+}
+
 function toggleFormBal(){
   const w=document.getElementById('form-bal-wrap');
   const btn=document.getElementById('btn-toggle-form');
   const vis=w.style.display!=='none';
   w.style.display=vis?'none':'block';
   btn.textContent=vis?'➕ Cadastrar nova balança':'✖ Fechar cadastro';
+  // Ao abrir, já preenche com a próxima TAG disponível
+  if(!vis) setTimeout(preencherProximaTag, 50);
 }
 
 function renderBalancas(){
