@@ -80,8 +80,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
       <div>
         <label>TAG da Balança *</label>
         <input type="text" id="a-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
-          style="font-size:1.05rem;font-weight:600;letter-spacing:.03em">
+          oninput="validarTagAlm(this)"
+          style="font-size:1.05rem;font-weight:700;letter-spacing:.04em">
         <datalist id="tag-list"></datalist>
+        <div id="a-tag-aviso" style="display:none;margin-top:5px;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700"></div>
       </div>
       <div class="r2">
         <div>
@@ -129,6 +131,42 @@ document.getElementById('a-quebra').value = new Date().toISOString().slice(0,10)
 const TAGS = ["AS-BL-003","AS-BL-004","AS-BL-007","AS-BL-018","AS-BL-034","AS-BL-043","AS-BL-045","AS-BL-049","AS-BL-052","AS-BL-054","AS-BL-058","AS-BL-061","AS-BL-089","AS-BL-091","AS-BL-092","AS-BL-099","AS-BL-100","AS-BL-102","AS-BL-103","AS-BL-104","AS-BL-112","AS-BL-134","AS-BL-140","AS-BL-141","AS-BL-142","AS-BL-143","AS-BL-144","AS-BL-145","AS-BL-146","AS-BL-147","AS-BL-148","AS-BL-149","AS-BL-150","AS-BL-165","AS-BL-166","AS-BL-167","AS-BL-168","AS-BL-170","AS-BL-171","AS-BL-172","AS-BL-173","AS-BL-175","AS-BL-176","AS-BL-177","AS-BL-179","AS-BL-180","AS-BL-181","AS-BL-182","AS-BL-183","AS-BL-184","AS-BL-185","AS-BL-187","AS-BL-188","AS-BL-189","AS-BL-190","AS-BL-191","AS-BL-192","AS-BL-193","AS-BL-194","AS-BL-195","AS-BL-196","AS-BL-198","AS-BL-199","AS-BL-200","AS-BL-201","AS-BL-202","AS-BL-204","AS-BL-205","AS-BL-206","AS-BL-207","AS-BL-208","AS-BL-209","AS-BL-210","AS-BL-211","AS-BL-212","AS-BL-215","AS-BL-217","AS-BL-220","AS-BL-222","AS-BL-225","AS-BL-228","AS-BL-229","AS-BL-230","AS-BL-231","AS-BL-232","AS-BL-233","AS-BL-236","AS-BL-238","AS-BL-239","AS-BL-242","AS-BL-244","AS-BL-245","AS-BL-246","AS-BL-247","AS-BL-250","AS-BL-251","AS-BL-252"];
 document.getElementById('tag-list').innerHTML = TAGS.map(t=>`<option value="${t}">`).join('');
 
+// Também tenta ler TAGs do localStorage da manutenção (mesma origem)
+try{
+  const balSalvas = JSON.parse(localStorage.getItem('gb_bal')||'[]');
+  if(balSalvas.length > TAGS.length){
+    const tagsExtra = balSalvas.map(b=>b.tag).filter(t=>!TAGS.includes(t));
+    if(tagsExtra.length){
+      document.getElementById('tag-list').innerHTML += tagsExtra.map(t=>`<option value="${t}">`).join('');
+    }
+  }
+}catch(e){}
+
+function getTodosOsTags(){
+  try{
+    const bal = JSON.parse(localStorage.getItem('gb_bal')||'[]');
+    if(bal.length) return bal.map(b=>b.tag);
+  }catch(e){}
+  return TAGS;
+}
+
+function validarTagAlm(el){
+  const val = (el.value||'').trim().toUpperCase();
+  const aviso = document.getElementById('a-tag-aviso');
+  if(!val){ aviso.style.display='none'; el.style.borderColor=''; el.style.background=''; return; }
+  const todos = getTodosOsTags();
+  const existe = todos.includes(val);
+  if(existe){
+    aviso.style.cssText='display:block;background:#d1fae5;color:#065f46;border:1px solid #86efac;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
+    aviso.innerHTML=`✅ Balança <strong>${val}</strong> encontrada — pode registrar`;
+    el.style.borderColor='#059669'; el.style.background='#f0fdf4';
+  } else {
+    aviso.style.cssText='display:block;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
+    aviso.innerHTML=`⚠️ TAG <strong>${val}</strong> não encontrada no cadastro — verifique o número`;
+    el.style.borderColor='#dc2626'; el.style.background='#fff5f5';
+  }
+}
+
 function fd(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
 function fmt(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
@@ -149,10 +187,17 @@ function showMsg(txt, tipo='ok'){
 
 async function registrar(e){
   e.preventDefault();
+  const tag = document.getElementById('a-tag').value.trim().toUpperCase();
+  // Bloqueia se TAG não existir no cadastro
+  if(!getTodosOsTags().includes(tag)){
+    validarTagAlm(document.getElementById('a-tag'));
+    showMsg(`❌ TAG <strong>${tag}</strong> não está cadastrada. Verifique o número da balança.`,'err');
+    return;
+  }
   const btn = document.getElementById('btn-env');
   btn.disabled = true; btn.textContent = 'Enviando...';
   const reg = {
-    tag: document.getElementById('a-tag').value.trim().toUpperCase(),
+    tag,
     dataQuebra: document.getElementById('a-quebra').value,
     turno: document.getElementById('a-turno').value,
     setor: document.getElementById('a-setor').value.trim(),
