@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/gestao-balanca", "destination": "/index.html" },
+    { "source": "/gestao-balanca/(.*)", "destination": "/$1" }
+  ]
+}
