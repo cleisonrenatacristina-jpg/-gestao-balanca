@@ -1068,7 +1068,7 @@ const BALANCAS_EXTRA=[
 ];
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
-const DATA_VERSION = '6';
+const DATA_VERSION = '7';
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -1084,15 +1084,7 @@ function importarPlanilha(){
     if(!tagMap[t]) tagMap[t]={id:uid(),tag:t,serie:r[1],modelo:r[2],marca:r[3],capDiv:r[4],setor:'',valor:0};
   });
   const bal=Object.values(tagMap);
-  const tid={};bal.forEach(b=>tid[b.tag]=b.id);
-  const oc=PLANILHA.filter(r=>r[0]&&r[0]!=='AS-BL-').map(r=>({
-    id:uid(),balancaId:tid[r[0]]||null,
-    numeroOS:r[4]||'',dataQuebra:r[5]||'',turno:'',setor:'',problemaConstatado:'',
-    dataRetirada:r[6]||null,dataAprovacao:null,previsaoChegada:null,
-    status:r[9]||'AGUARDANDO APROVAÇÃO',aprovadoPor:r[10]||'',
-    dataRetorno:r[7]||null,custo:r[11]||0,
-    descartado:false,quemDescartou:'',dataDescarte:null,capDiv:r[8]||'',obs:''
-  }));
+  const oc=[];
   localStorage.setItem('gb_bal',JSON.stringify(bal));
   localStorage.setItem('gb_oc',JSON.stringify(oc));
   localStorage.setItem('gb_ver',DATA_VERSION);
@@ -1105,13 +1097,12 @@ function init() {
     const bal = JSON.parse(localStorage.getItem('gb_bal')||'null');
     const oc  = JSON.parse(localStorage.getItem('gb_oc')||'null');
 
-    // Dados válidos: versão correta + mínimo 90 balanças (PLANILHA tem 97) + mínimo 100 ocorrências
-    if(ver === DATA_VERSION && bal && Array.isArray(bal) && bal.length >= 90
-       && oc && Array.isArray(oc) && oc.length >= 100) {
-      return {bal, oc};
+    // Dados válidos: versão correta + mínimo 200 balanças
+    if(ver === DATA_VERSION && bal && Array.isArray(bal) && bal.length >= 200) {
+      return {bal, oc: oc||[]};
     }
 
-    // Dados insuficientes ou versão errada → reimporta preservando edições do usuário
+    // Versão errada ou poucos dados → reimporta preservando edições do usuário
     const valorSalvo = {}, dateSalvo = {};
     if(bal && Array.isArray(bal)) {
       bal.forEach(b=>{
@@ -1124,11 +1115,9 @@ function init() {
       if(valorSalvo[b.tag]) b.valor         = valorSalvo[b.tag];
       if(dateSalvo[b.tag])  b.dataAquisicao = dateSalvo[b.tag];
     });
-    // Preserva ocorrências extras do almoxarifado (com fbId) que não estão na planilha
+    // Preserva apenas ocorrências do almoxarifado (com fbId)
     if(oc && Array.isArray(oc) && oc.length > 0) {
-      const planilhaOsSet = new Set(result.oc.map(o=>o.numeroOS).filter(Boolean));
-      oc.filter(o=>o.fbId && !result.oc.find(p=>p.fbId===o.fbId))
-        .forEach(o=>result.oc.push(o));
+      oc.filter(o=>o.fbId).forEach(o=>result.oc.push(o));
     }
     localStorage.setItem('gb_bal', JSON.stringify(result.bal));
     localStorage.setItem('gb_oc',  JSON.stringify(result.oc));
@@ -1684,10 +1673,14 @@ function renderManPend(){
     const reinc = isReinc(o);
     const st    = getStatus(o);
     const atrasada = o.previsaoChegada && !o.dataRetorno && o.previsaoChegada < hoje;
-    let proxEtapa = 0, proxLabel = '';
-    if(!o.dataRetirada && st!=='DESCARTADO'){proxEtapa=2;proxLabel='📤 Registrar saída';}
-    else if(o.dataRetirada && !o.custo && st!=='DESCARTADO'){proxEtapa=3;proxLabel='💰 Orçamento';}
-    else if(o.dataRetirada && !o.dataRetorno && st!=='DESCARTADO'){proxEtapa=4;proxLabel='📥 Registrar retorno';}
+    // Etapas independentes
+    const stageBtns=[];
+    if(st!=='DESCARTADO'){
+      if(!o.dataRetirada) stageBtns.push([2,'📤 Saída']);
+      stageBtns.push([3,'💰 Orçamento']);
+      if(!o.dataRetorno)  stageBtns.push([4,'📥 Retorno']);
+    }
+    const proxEtapa=0;
 
     // Bloco do almoxarifado — mostra tudo que foi registrado
     const almInfo = [
@@ -1706,10 +1699,7 @@ function renderManPend(){
            title="Excluir este registro">🗑</button>`
       : '';
 
-    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}"
-        style="cursor:${proxEtapa?'pointer':'default'}"
-        onclick="${proxEtapa?`preencherEtapa(${proxEtapa},'${o.id}')`:''}"
-        title="${proxLabel||''}">
+    return `<tr class="${reinc?'hl':st==='DESCARTADO'?'hl2':''}">
       <td>
         <strong>${nomeBal(o.balancaId)}</strong>
         ${reinc?'<br><span class="tq">⚡&lt;7d</span>':''}
@@ -1724,9 +1714,11 @@ function renderManPend(){
       <td>${o.valorOrcamento?fmt(o.valorOrcamento):'—'}</td>
       <td>${statusBadge(st)}${atrasada?'<br><span class="badge b-bad" style="font-size:.65rem">Atrasada</span>':''}</td>
       <td>${fd(o.dataRetorno)}</td>
-      <td style="white-space:nowrap">
-        ${proxEtapa?`<span style="font-size:.72rem;color:var(--p);font-weight:600">${proxLabel}</span>`
-                   :'<span style="font-size:.7rem;color:var(--muted)">—</span>'}
+      <td style="white-space:nowrap;min-width:120px">
+        ${stageBtns.length
+          ? stageBtns.map(([e,l])=>`<button onclick="event.stopPropagation();preencherEtapa(${e},'${o.id}')"
+              style="display:block;width:100%;margin-bottom:3px;padding:3px 8px;border-radius:6px;border:1px solid var(--bdr);background:#f9fafb;font-size:.7rem;font-weight:700;cursor:pointer;text-align:left;color:var(--pd)">${l}</button>`).join('')
+          : '<span style="font-size:.7rem;color:var(--muted)">—</span>'}
       </td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
