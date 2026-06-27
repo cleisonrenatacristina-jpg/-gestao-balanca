@@ -1068,7 +1068,7 @@ const BALANCAS_EXTRA=[
 ];
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
-const DATA_VERSION = '7';
+const DATA_VERSION = '8';
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -1084,7 +1084,15 @@ function importarPlanilha(){
     if(!tagMap[t]) tagMap[t]={id:uid(),tag:t,serie:r[1],modelo:r[2],marca:r[3],capDiv:r[4],setor:'',valor:0};
   });
   const bal=Object.values(tagMap);
-  const oc=[];
+  const tid={};bal.forEach(b=>tid[b.tag]=b.id);
+  const oc=PLANILHA.filter(r=>r[0]&&r[0]!=='AS-BL-').map(r=>({
+    id:uid(),balancaId:tid[r[0]]||null,
+    numeroOS:r[4]||'',dataQuebra:r[5]||'',turno:'',setor:'',problemaConstatado:'',
+    dataRetirada:r[6]||null,dataAprovacao:null,previsaoChegada:null,
+    status:r[9]||'AGUARDANDO APROVAÇÃO',aprovadoPor:r[10]||'',
+    dataRetorno:r[7]||null,custo:r[11]||0,
+    descartado:false,quemDescartou:'',dataDescarte:null,capDiv:r[8]||'',obs:''
+  }));
   localStorage.setItem('gb_bal',JSON.stringify(bal));
   localStorage.setItem('gb_oc',JSON.stringify(oc));
   localStorage.setItem('gb_ver',DATA_VERSION);
@@ -1115,9 +1123,10 @@ function init() {
       if(valorSalvo[b.tag]) b.valor         = valorSalvo[b.tag];
       if(dateSalvo[b.tag])  b.dataAquisicao = dateSalvo[b.tag];
     });
-    // Preserva apenas ocorrências do almoxarifado (com fbId)
+    // Preserva ocorrências extras do almoxarifado (com fbId) que não estão na planilha
     if(oc && Array.isArray(oc) && oc.length > 0) {
-      oc.filter(o=>o.fbId).forEach(o=>result.oc.push(o));
+      oc.filter(o=>o.fbId && !result.oc.find(p=>p.fbId===o.fbId))
+        .forEach(o=>result.oc.push(o));
     }
     localStorage.setItem('gb_bal', JSON.stringify(result.bal));
     localStorage.setItem('gb_oc',  JSON.stringify(result.oc));
@@ -1618,7 +1627,7 @@ function renderManPend(){
   const qtdForam    = foramBase.length;
   const qtdVoltaram = foramBase.filter(o=>o.dataRetorno).length;
   const aindaFora   = qtdForam - qtdVoltaram;
-  const listaFora   = foramBase.filter(o=>!o.dataRetorno);
+  const listaFora   = foramBase.filter(o=>!o.dataRetorno && o.fbId);
 
   document.getElementById('mv-entradas').textContent = qtdForam;
   document.getElementById('mv-voltaram').textContent = qtdVoltaram;
@@ -1641,7 +1650,7 @@ function renderManPend(){
   }
 
   // Chips: aguardando saída → clique preenche Etapa 2 (Saída)
-  let aguardando = ocorrencias.filter(o=>!o.dataRetirada&&!o.dataRetorno&&getStatus(o)!=='DESCARTADO');
+  let aguardando = ocorrencias.filter(o=>!o.dataRetirada&&!o.dataRetorno&&getStatus(o)!=='DESCARTADO'&&o.fbId);
   if(fMes) aguardando = aguardando.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
   const blocoAg = document.getElementById('bloco-aguardando');
   if(aguardando.length){
