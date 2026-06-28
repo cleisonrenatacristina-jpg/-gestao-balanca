@@ -2386,6 +2386,7 @@ function step2Salvar(){
   document.getElementById('s2-os').value='';
   stepMsg('s2-msg',`✅ Saída de ${bal.tag} registrada!`);
   renderManPend();
+  sincronizarFirebase();
 }
 
 function step3Salvar(){
@@ -2416,6 +2417,7 @@ function step3Salvar(){
   document.getElementById('s3-os').value='';
   stepMsg('s3-msg',`✅ Decisão "${decisao}" salva para ${bal.tag}!`);
   renderManPend();renderDashboard();
+  sincronizarFirebase();
 }
 
 function step4Salvar(){
@@ -2473,6 +2475,7 @@ function step5Salvar(){
   document.getElementById('s5-motivo').value='';
   stepMsg('s5-msg',`🗑 Balança ${bal.tag} marcada como descartada.`);
   renderManPend();renderDashboard();
+  sincronizarFirebase();
 }
 
 function toggleS3Desc(){
@@ -2860,9 +2863,15 @@ renderAll();
 async function sincronizarFirebase(){
   try {
     const dados = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
-    if(!dados) return;
-    const registros = Object.entries(dados).map(([id,v])=>({fbId:id,...v}));
+    const registros = dados ? Object.entries(dados).map(([id,v])=>({fbId:id,...v})) : [];
+    const fbIdsAtivos = new Set(registros.map(r=>r.fbId));
     let mudou = false;
+
+    // Passo 0: remove ocorrências que foram excluídas do Firebase (ex: excluído no almoxarifado)
+    const antes = ocorrencias.length;
+    ocorrencias = ocorrencias.filter(o => !o.fbId || fbIdsAtivos.has(o.fbId));
+    if(ocorrencias.length !== antes){ mudou = true; }
+
     // Passo 1: recupera fbIds perdidos para QUALQUER status no Firebase
     registros.forEach(reg => {
       if(ocorrencias.find(o=>o.fbId===reg.fbId)) return;
@@ -2871,67 +2880,53 @@ async function sincronizarFirebase(){
       const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
       if(semFbId){ semFbId.fbId=reg.fbId; mudou=true; }
     });
-    // Passo 2: importa novos registros AGUARDANDO que não existem localmente
+
+    // Passo 2: importa novos registros AGUARDANDO criados pelo almoxarifado
     registros.forEach(reg => {
-      // Só importa registros com status AGUARDANDO (criados pelo almoxarifado)
       if(reg.status !== 'AGUARDANDO') return;
-      // Verifica se já existe no localStorage (pelo fbId)
-      const jaExiste = ocorrencias.find(o=>o.fbId===reg.fbId);
-      if(jaExiste) return;
-      // Encontra a balança pelo tag
+      if(ocorrencias.find(o=>o.fbId===reg.fbId)) return;
       const bal = balancas.find(b=>b.tag===reg.tag);
       if(!bal) return;
-      // Adiciona nova ocorrência vinda do almoxarifado
       ocorrencias.push({
-        id: uid(),
-        fbId: reg.fbId,
-        balancaId: bal.id,
-        numeroOS: '',
-        dataQuebra: reg.dataQuebra||'',
-        turno: reg.turno||'',
-        setor: reg.setor||'',
-        problemaConstatado: reg.problema||'',
-        dataRetirada: null, dataAprovacao: null, previsaoChegada: null,
-        status: 'AGUARDANDO APROVAÇÃO',
-        aprovadoPor: '', dataRetorno: null, custo: 0,
-        descartado: false, quemDescartou: '', dataDescarte: null,
-        capDiv: '', obs: '', valorOrcamento: 0, qtdOrcamento: 0,
-        quemAcompanhouTeste: '', quemValidou: ''
+        id:uid(), fbId:reg.fbId, balancaId:bal.id, numeroOS:'',
+        dataQuebra:reg.dataQuebra||'', turno:reg.turno||'', setor:reg.setor||'',
+        problemaConstatado:reg.problema||'',
+        dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
+        status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'', dataRetorno:null, custo:0,
+        descartado:false, quemDescartou:'', dataDescarte:null,
+        capDiv:'', obs:'', valorOrcamento:0, qtdOrcamento:0,
+        quemAcompanhouTeste:'', quemValidou:''
       });
       mudou = true;
     });
+
     if(mudou){
-      salvar();
-      renderAll();
-      // Mostra notificação discreta
-      const nav = document.querySelector('nav');
-      const aviso = document.createElement('div');
-      aviso.style.cssText='background:#1a56db;color:#fff;padding:6px 16px;font-size:.8rem;text-align:center';
-      aviso.textContent='🔔 Nova(s) balança(s) registrada(s) pelo almoxarifado!';
-      nav.after(aviso);
-      setTimeout(()=>aviso.remove(), 5000);
+      salvar(); renderAll();
+      const novas = registros.filter(r=>r.status==='AGUARDANDO'&&!ocorrencias.find(o=>o.fbId===r.fbId&&o.status!=='AGUARDANDO APROVAÇÃO')).length;
+      if(novas>0){
+        const nav=document.querySelector('nav');
+        const aviso=document.createElement('div');
+        aviso.style.cssText='background:#1a56db;color:#fff;padding:6px 16px;font-size:.8rem;text-align:center';
+        aviso.textContent=`🔔 Nova(s) balança(s) registrada(s) pelo almoxarifado!`;
+        nav.after(aviso); setTimeout(()=>aviso.remove(),5000);
+      }
     }
 
-    // Exporta status das ocorrências para o Firebase ver no almoxarifado
-    const statusMap = {};
+    // Passo 3: exporta status para Firebase — só para fbIds que existem no Firebase (evita recriar excluídos)
+    const updates = {};
     ocorrencias.forEach(o=>{
-      if(!o.fbId) return;
-      let st = 'AGUARDANDO';
+      if(!o.fbId || !fbIdsAtivos.has(o.fbId)) return;
+      let st='AGUARDANDO';
       if(o.status==='DESCARTADO') st='DESCARTADO';
-      else if(o.dataRetorno) st='VOLTOU';
-      else if(o.dataRetirada) st='SAIU';
-      else if(o.status==='APROVADO') st='APROVADO';
+      else if(o.dataRetorno)      st='VOLTOU';
+      else if(o.dataRetirada)     st='SAIU';
+      else if(o.status==='APROVADO')  st='APROVADO';
       else if(o.status==='REPROVADO') st='REPROVADO';
-      statusMap[o.fbId] = { status: st, custo: o.custo||0, dataRetorno: o.dataRetorno||null };
+      updates[`/ocorrencias/${o.fbId}/status`] = st;
+      updates[`/ocorrencias/${o.fbId}/custo`]  = o.custo||0;
+      if(o.dataRetorno) updates[`/ocorrencias/${o.fbId}/dataRetorno`] = o.dataRetorno;
     });
-    // Atualiza status no Firebase em batch
-    if(Object.keys(statusMap).length){
-      const updates = {};
-      Object.entries(statusMap).forEach(([fbId,v])=>{
-        updates[`/ocorrencias/${fbId}/status`] = v.status;
-        updates[`/ocorrencias/${fbId}/custo`]  = v.custo;
-        if(v.dataRetorno) updates[`/ocorrencias/${fbId}/dataRetorno`] = v.dataRetorno;
-      });
+    if(Object.keys(updates).length){
       fetch(`${DB}/.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).catch(()=>{});
     }
   } catch(e){ console.warn('Firebase sync error:', e); }

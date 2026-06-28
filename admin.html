@@ -359,23 +359,39 @@ function initDados(){
 let {bal:balancas,oc:ocorrencias}=initDados();
 const charts={};
 
-// Sync com Firebase (adiciona novos do almoxarifado)
+// Sync com Firebase (lê status atualizado pela manutenção e almoxarifado)
 async function syncFirebase(){
   try{
     const dados=await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
-    if(!dados){setSyncOk();return;}
-    const regs=Object.entries(dados).map(([id,v])=>({fbId:id,...v}));
+    const regs=dados?Object.entries(dados).map(([id,v])=>({fbId:id,...v})):[];
+    const fbIdsAtivos=new Set(regs.map(r=>r.fbId));
     let mudou=false;
+
+    // Passo 0: remove ocorrências excluídas no almoxarifado
+    const antes=ocorrencias.length;
+    ocorrencias=ocorrencias.filter(o=>!o.fbId||fbIdsAtivos.has(o.fbId));
+    if(ocorrencias.length!==antes) mudou=true;
+
+    // Passo 1: recupera fbIds perdidos e atualiza status vindos do Firebase
     regs.forEach(reg=>{
       const jaExiste=ocorrencias.find(o=>o.fbId===reg.fbId);
       if(jaExiste){
-        // Atualiza status se manutenção atualizou
         if(reg.status&&reg.status!==jaExiste.status){jaExiste.status=reg.status;mudou=true;}
         if(reg.dataRetorno&&!jaExiste.dataRetorno){jaExiste.dataRetorno=reg.dataRetorno;mudou=true;}
+        if(reg.custo&&reg.custo!==jaExiste.custo){jaExiste.custo=reg.custo;mudou=true;}
         return;
       }
       const bal=balancas.find(b=>b.tag===reg.tag);
       if(!bal)return;
+      // Tenta recuperar fbId em ocorrência local sem vínculo
+      const semFbId=ocorrencias.find(o=>!o.fbId&&o.balancaId===bal.id&&o.dataQuebra===reg.dataQuebra);
+      if(semFbId){
+        semFbId.fbId=reg.fbId;
+        if(reg.status)semFbId.status=reg.status;
+        if(reg.dataRetorno)semFbId.dataRetorno=reg.dataRetorno;
+        mudou=true; return;
+      }
+      // Nova ocorrência vinda do Firebase
       ocorrencias.push({
         id:uid(),fbId:reg.fbId,balancaId:bal.id,
         numeroOS:'',dataQuebra:reg.dataQuebra||'',turno:reg.turno||'',
