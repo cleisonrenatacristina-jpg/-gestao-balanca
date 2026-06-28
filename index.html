@@ -2359,7 +2359,7 @@ function step1Salvar(){
   // Envia ao Firebase também
   fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     tag:bal.tag,dataQuebra:dataQ,turno:oc.turno,setor:oc.setor,problema:oc.problemaConstatado,status:'AGUARDANDO',timestamp:Date.now()
-  })}).then(r=>r.json()).then(res=>{if(res.name)oc.fbId=res.name;}).catch(()=>{});
+  })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
   ocorrencias.push(oc);salvar();
   document.getElementById('s1-tag').value='';
   document.getElementById('s1-data').value=new Date().toISOString().slice(0,10);
@@ -2429,7 +2429,15 @@ function step4Salvar(){
   oc.quemAcompanhouTeste=document.getElementById('s4-acomp').value.trim();
   oc.quemValidou=document.getElementById('s4-validou').value.trim();
   if(oc.dataRetorno&&oc.status!=='REPROVADO'&&oc.status!=='DESCARTADO') oc.status='APROVADO';
-  if(oc.fbId) fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
+  if(oc.fbId){
+    fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
+  } else if(oc.dataRetorno){
+    // Ocorrência sem fbId (criada antes do almoxarifado) — cria entrada no Firebase
+    fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      tag:bal.tag,dataQuebra:oc.dataQuebra,turno:oc.turno||'',setor:oc.setor||'',
+      problema:oc.problemaConstatado||'',status:'VOLTOU',dataRetorno:oc.dataRetorno,timestamp:Date.now()
+    })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
+  }
   salvar();
   document.getElementById('s4-tag').value='';
   document.getElementById('s4-retorno').value='';
@@ -2854,6 +2862,9 @@ async function sincronizarFirebase(){
       // Encontra a balança pelo tag
       const bal = balancas.find(b=>b.tag===reg.tag);
       if(!bal) return;
+      // Tenta recuperar fbId perdido: procura ocorrência local sem fbId com mesma tag+dataQuebra
+      const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
+      if(semFbId){ semFbId.fbId=reg.fbId; mudou=true; return; }
       // Adiciona nova ocorrência vinda do almoxarifado
       ocorrencias.push({
         id: uid(),
