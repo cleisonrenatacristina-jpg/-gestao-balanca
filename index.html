@@ -2432,11 +2432,21 @@ function step4Salvar(){
   if(oc.fbId){
     fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
   } else if(oc.dataRetorno){
-    // Ocorrência sem fbId (criada antes do almoxarifado) — cria entrada no Firebase
-    fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      tag:bal.tag,dataQuebra:oc.dataQuebra,turno:oc.turno||'',setor:oc.setor||'',
-      problema:oc.problemaConstatado||'',status:'VOLTOU',dataRetorno:oc.dataRetorno,timestamp:Date.now()
-    })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
+    // Sem fbId: busca no Firebase por tag+dataQuebra para evitar duplicata
+    fetch(`${DB}/ocorrencias.json`).then(r=>r.json()).then(dados=>{
+      if(!dados) return;
+      const match=Object.entries(dados).find(([,v])=>v.tag===bal.tag&&v.dataQuebra===oc.dataQuebra);
+      if(match){
+        const [fbId]=match;
+        oc.fbId=fbId; salvar();
+        fetch(`${DB}/ocorrencias/${fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
+      } else {
+        fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          tag:bal.tag,dataQuebra:oc.dataQuebra,turno:oc.turno||'',setor:oc.setor||'',
+          problema:oc.problemaConstatado||'',status:'VOLTOU',dataRetorno:oc.dataRetorno,timestamp:Date.now()
+        })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
+      }
+    }).catch(()=>{});
   }
   salvar();
   document.getElementById('s4-tag').value='';
@@ -2853,6 +2863,15 @@ async function sincronizarFirebase(){
     if(!dados) return;
     const registros = Object.entries(dados).map(([id,v])=>({fbId:id,...v}));
     let mudou = false;
+    // Passo 1: recupera fbIds perdidos para QUALQUER status no Firebase
+    registros.forEach(reg => {
+      if(ocorrencias.find(o=>o.fbId===reg.fbId)) return;
+      const bal = balancas.find(b=>b.tag===reg.tag);
+      if(!bal) return;
+      const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
+      if(semFbId){ semFbId.fbId=reg.fbId; mudou=true; }
+    });
+    // Passo 2: importa novos registros AGUARDANDO que não existem localmente
     registros.forEach(reg => {
       // Só importa registros com status AGUARDANDO (criados pelo almoxarifado)
       if(reg.status !== 'AGUARDANDO') return;
@@ -2862,9 +2881,6 @@ async function sincronizarFirebase(){
       // Encontra a balança pelo tag
       const bal = balancas.find(b=>b.tag===reg.tag);
       if(!bal) return;
-      // Tenta recuperar fbId perdido: procura ocorrência local sem fbId com mesma tag+dataQuebra
-      const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
-      if(semFbId){ semFbId.fbId=reg.fbId; mudou=true; return; }
       // Adiciona nova ocorrência vinda do almoxarifado
       ocorrencias.push({
         id: uid(),
