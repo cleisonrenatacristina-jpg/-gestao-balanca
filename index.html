@@ -2872,13 +2872,18 @@ async function sincronizarFirebase(){
     ocorrencias = ocorrencias.filter(o => !o.fbId || fbIdsAtivos.has(o.fbId));
     if(ocorrencias.length !== antes){ mudou = true; }
 
-    // Passo 1: recupera fbIds perdidos para QUALQUER status no Firebase
+    // Passo 1: recupera fbIds e sincroniza campos do Firebase que o local pode não ter
     registros.forEach(reg => {
-      if(ocorrencias.find(o=>o.fbId===reg.fbId)) return;
+      const local = ocorrencias.find(o=>o.fbId===reg.fbId);
+      if(local){
+        // Puxa dataRetorno do Firebase se o local perdeu (evita regredir status no Passo 3)
+        if(reg.dataRetorno && !local.dataRetorno){ local.dataRetorno=reg.dataRetorno; mudou=true; }
+        return;
+      }
       const bal = balancas.find(b=>b.tag===reg.tag);
       if(!bal) return;
       const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
-      if(semFbId){ semFbId.fbId=reg.fbId; mudou=true; }
+      if(semFbId){ semFbId.fbId=reg.fbId; if(reg.dataRetorno&&!semFbId.dataRetorno)semFbId.dataRetorno=reg.dataRetorno; mudou=true; }
     });
 
     // Passo 2: importa novos registros AGUARDANDO criados pelo almoxarifado
@@ -2912,7 +2917,13 @@ async function sincronizarFirebase(){
       }
     }
 
-    // Passo 3: exporta status para Firebase — só para fbIds que existem no Firebase (evita recriar excluídos)
+    // Passo 3: exporta status para Firebase — não regride status já confirmado lá
+    // Hierarquia: AGUARDANDO < SAIU < APROVADO = REPROVADO < VOLTOU < DESCARTADO
+    const hierarquia = ['AGUARDANDO','SAIU','APROVADO','REPROVADO','VOLTOU','DESCARTADO'];
+    const nivel = st => { const i=hierarquia.indexOf(st); return i<0?0:i; };
+    const fbStatusAtual = {};
+    registros.forEach(r=>{ fbStatusAtual[r.fbId]=r.status; });
+
     const updates = {};
     ocorrencias.forEach(o=>{
       if(!o.fbId || !fbIdsAtivos.has(o.fbId)) return;
@@ -2922,6 +2933,9 @@ async function sincronizarFirebase(){
       else if(o.dataRetirada)     st='SAIU';
       else if(o.status==='APROVADO')  st='APROVADO';
       else if(o.status==='REPROVADO') st='REPROVADO';
+      // Não sobrescreve Firebase com status inferior (protege contra dados locais desatualizados)
+      const stFB = fbStatusAtual[o.fbId]||'AGUARDANDO';
+      if(nivel(st) < nivel(stFB)) st = stFB;
       updates[`/ocorrencias/${o.fbId}/status`] = st;
       updates[`/ocorrencias/${o.fbId}/custo`]  = o.custo||0;
       if(o.dataRetorno) updates[`/ocorrencias/${o.fbId}/dataRetorno`] = o.dataRetorno;
