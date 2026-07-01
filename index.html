@@ -219,6 +219,25 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
 .modal{background:#fff;border-radius:14px;padding:22px;width:100%;max-width:560px;margin:16px;box-shadow:0 24px 60px rgba(26,10,18,.2);max-height:92vh;overflow-y:auto}
 .modal h3{font-size:.95rem;font-weight:800;margin-bottom:14px;color:var(--pd)}
 .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+/* Aprovações */
+.aprov-card{background:#fff;border-radius:12px;border:2px solid #fcd34d;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(217,119,6,.12)}
+.aprov-card.ok{border-color:#86efac;box-shadow:0 2px 12px rgba(5,150,105,.08)}
+.aprov-card.bad{border-color:#fca5a5;box-shadow:0 2px 12px rgba(220,38,38,.08)}
+.aprov-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.aprov-tag{font-size:1.05rem;font-weight:900;color:var(--pd)}
+.aprov-total{font-size:1.1rem;font-weight:900;color:var(--ok)}
+.aprov-itens{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.aprov-item-chip{background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:4px 12px;font-size:.77rem;color:#0369a1;font-weight:600}
+.aprov-actions{display:flex;gap:8px;margin-top:12px}
+.btn-aprov{flex:1;padding:10px;border:none;border-radius:8px;font-size:.82rem;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;text-transform:uppercase;letter-spacing:.03em}
+.btn-sim{background:#059669;color:#fff;box-shadow:0 2px 8px rgba(5,150,105,.3)}.btn-sim:hover{background:#047857;transform:translateY(-1px)}
+.btn-nao{background:#dc2626;color:#fff;box-shadow:0 2px 8px rgba(220,38,38,.3)}.btn-nao:hover{background:#b91c1c;transform:translateY(-1px)}
+.ap-sec{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:6px 12px;border-radius:6px;margin:14px 0 8px}
+.ap-sec-pend{background:#fef3c7;color:#92400e}
+.ap-sec-ok{background:#d1fae5;color:#065f46}
+.ap-sec-bad{background:#fee2e2;color:#991b1b}
+.obs-input{width:100%;padding:8px 10px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.83rem;font-family:'Inter',sans-serif;margin-top:8px;resize:none}
+.obs-input:focus{outline:none;border-color:var(--p)}
 </style>
 </head>
 <body>
@@ -239,8 +258,35 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
   <button onclick="goPage('ocorrencias',this)">Ocorrências</button>
   <button onclick="goPage('balancas',this)">Balanças</button>
   <button onclick="goPage('relatorio',this)">Relatório</button>
+  <button onclick="goPage('aprovacoes',this)" id="nav-aprovacoes">🔧 Aprovações <span id="badge-aprov" style="display:none;background:#dc2626;color:#fff;border-radius:20px;padding:1px 7px;font-size:.68rem;margin-left:4px">0</span></button>
   <button onclick="goPage('varredura-rep',this)" id="nav-varredura-rep" style="display:none">🤖 IA</button>
 </nav>
+
+<!-- ═══════════════════ APROVAÇÕES (TERCEIRIZADA) ═══════════════════ -->
+<div id="page-aprovacoes" class="page cont">
+  <div style="max-width:860px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:var(--pd)">🔧 Orçamentos da Terceirizada</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">Aprove ou reprove os orçamentos enviados pela terceirizada</div>
+      </div>
+      <a href="terceirizada.html" target="_blank" style="background:rgba(3,105,161,.1);border:1px solid #bae6fd;border-radius:8px;padding:7px 14px;font-size:.78rem;font-weight:700;color:#0369a1;text-decoration:none">🔗 Abrir portal da terceirizada</a>
+    </div>
+
+    <!-- Stats rápidos -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
+      <div class="stat ora"><div class="v" id="ap-st-ag">—</div><div class="l">⌛ Aguardando</div></div>
+      <div class="stat grn"><div class="v" id="ap-st-ok">—</div><div class="l">✅ Aprovados</div></div>
+      <div class="stat red"><div class="v" id="ap-st-bad">—</div><div class="l">❌ Reprovados</div></div>
+    </div>
+
+    <!-- Pendentes de aprovação -->
+    <div id="ap-pendentes"></div>
+
+    <!-- Histórico aprovados/reprovados -->
+    <div id="ap-historico"></div>
+  </div>
+</div>
 
 <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
 <div id="page-dashboard" class="page active cont">
@@ -1228,6 +1274,7 @@ function goPage(id,btn){
   document.getElementById('page-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
   renderAll();
+  if(id==='aprovacoes') carregarAprovacoes();
   // Se entrou na aba de relatório IA, renderiza dados salvos
   if(id==='varredura-rep' && window._savedVarredura){
     renderRelatorioIA(window._savedVarredura.resultado, window._savedVarredura.total);
@@ -3001,6 +3048,114 @@ async function lerAlertasAgente(){
 // Sincroniza na abertura e a cada 30 segundos
 sincronizarFirebase();
 setInterval(sincronizarFirebase, 30000);
+
+/* ══════════════════════════════════════════════════════════
+   APROVAÇÕES DE ORÇAMENTOS — TERCEIRIZADA
+   ══════════════════════════════════════════════════════════ */
+async function carregarAprovacoes(){
+  try {
+    const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
+    const orcs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
+    orcs.sort((a,b)=>b.timestamp-a.timestamp);
+
+    const ag    = orcs.filter(o=>o.status==='AGUARDANDO').length;
+    const aprov = orcs.filter(o=>o.status==='APROVADO').length;
+    const reprov= orcs.filter(o=>o.status==='REPROVADO').length;
+
+    const bEl = document.getElementById('badge-aprov');
+    if(ag>0){ bEl.style.display='inline'; bEl.textContent=ag; }
+    else { bEl.style.display='none'; }
+
+    const stAg  = document.getElementById('ap-st-ag');
+    const stOk  = document.getElementById('ap-st-ok');
+    const stBad = document.getElementById('ap-st-bad');
+    if(stAg){ stAg.textContent=ag; stOk.textContent=aprov; stBad.textContent=reprov; }
+
+    const pendEl = document.getElementById('ap-pendentes');
+    const histEl = document.getElementById('ap-historico');
+    if(!pendEl) return;
+
+    const pend = orcs.filter(o=>o.status==='AGUARDANDO');
+    const hist = orcs.filter(o=>o.status!=='AGUARDANDO');
+
+    // Pendentes
+    if(!pend.length){
+      pendEl.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted);font-size:.88rem">Nenhum orçamento aguardando aprovação.</div>';
+    } else {
+      pendEl.innerHTML = `<div class="ap-sec ap-sec-pend">⌛ Aguardando sua aprovação (${pend.length})</div>` + pend.map(o=>renderAprovCard(o, true)).join('');
+    }
+
+    // Histórico
+    if(!hist.length){
+      histEl.innerHTML='';
+    } else {
+      const ok  = hist.filter(o=>o.status==='APROVADO');
+      const bad = hist.filter(o=>o.status==='REPROVADO');
+      let html = '';
+      if(ok.length)  html += `<div class="ap-sec ap-sec-ok">✅ Aprovados (${ok.length})</div>` + ok.map(o=>renderAprovCard(o,false)).join('');
+      if(bad.length) html += `<div class="ap-sec ap-sec-bad">❌ Reprovados (${bad.length})</div>` + bad.map(o=>renderAprovCard(o,false)).join('');
+      histEl.innerHTML = html;
+    }
+  } catch(e){ console.warn('Erro ao carregar orçamentos:', e); }
+}
+
+function renderAprovCard(o, comAcoes){
+  const its = parseItensOrc(o.itens);
+  const badge = o.status==='APROVADO' ? '<span class="badge b-ok">✅ Aprovado</span>'
+              : o.status==='REPROVADO' ? '<span class="badge b-bad">❌ Reprovado</span>'
+              : '<span class="badge b-warn">⌛ Aguardando</span>';
+  const cls = o.status==='APROVADO'?'ok':o.status==='REPROVADO'?'bad':'';
+  return `
+    <div class="aprov-card ${cls}" id="aprov-${o.id}">
+      <div class="aprov-header">
+        <div>
+          <span class="aprov-tag">${o.tag}</span> ${badge}
+          <div style="font-size:.75rem;color:var(--muted);margin-top:3px">
+            ${o.numeroOS?'O.S.: <strong>'+o.numeroOS+'</strong> · ':''}
+            Orçamento: ${fdOrc(o.dataOrcamento)}
+            ${o.dataPrevistaEntrega?' · Entrega prev.: <strong>'+fdOrc(o.dataPrevistaEntrega)+'</strong>':''}
+          </div>
+        </div>
+        <div class="aprov-total">${fmtOrc(o.valorTotal)}</div>
+      </div>
+      ${its.length?`<div class="aprov-itens">
+        ${its.map(i=>`<span class="aprov-item-chip">🔩 ${i.desc}${i.valor?' · '+fmtOrc(i.valor):''}</span>`).join('')}
+      </div>`:'<div style="font-size:.8rem;color:var(--muted);font-style:italic">Sem itens detalhados.</div>'}
+      ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;padding:6px 10px;background:#FAF8FB;border-radius:6px;margin-top:6px">"${o.obsAprovacao}"</div>`:''}
+      ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:6px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fdOrc(o.dataAprovacao)}${o.aprovadoPor?' — '+o.aprovadoPor:''}</div>`:''}
+      ${comAcoes?`
+        <textarea id="obs-${o.id}" class="obs-input" rows="2" placeholder="Observação opcional (motivo da reprovação, condições de aprovação...)"></textarea>
+        <div class="aprov-actions">
+          <button class="btn-aprov btn-sim" onclick="aprovar('${o.id}')">✅ Aprovar</button>
+          <button class="btn-aprov btn-nao" onclick="reprovar('${o.id}')">❌ Reprovar</button>
+        </div>
+      `:''}
+    </div>`;
+}
+
+async function aprovar(id){
+  await decideOrc(id,'APROVADO');
+}
+async function reprovar(id){
+  await decideOrc(id,'REPROVADO');
+}
+async function decideOrc(id, status){
+  const obs  = (document.getElementById('obs-'+id)||{}).value||'';
+  const hoje = new Date().toISOString().slice(0,10);
+  const upd  = { status, dataAprovacao: hoje, aprovadoPor: 'Manutenção', obsAprovacao: obs };
+  try {
+    await fetch(`${DB}/orcamentos/${id}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)});
+    carregarAprovacoes();
+  } catch(e){ alert('Erro ao salvar. Tente novamente.'); }
+}
+
+function parseItensOrc(str){ try{ return JSON.parse(str||'[]'); }catch(e){ return []; } }
+function fdOrc(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
+function fmtOrc(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
+// Carrega aprovações ao entrar na aba e periodicamente
+carregarAprovacoes();
+setInterval(carregarAprovacoes, 30000);
 </script>
 </body>
 </html>

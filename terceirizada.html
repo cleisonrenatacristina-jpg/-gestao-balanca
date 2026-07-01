@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LivUp — Terceirizada · Orçamentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--p:#C0244E;--pd:#8B1A39;--pl:#F9E8EF;--ok:#059669;--danger:#dc2626;--warn:#d97706;--info:#0369a1;--bg:#F2F0F4;--card:#fff;--bdr:#EAE6EC;--muted:#8A7890;--txt:#1A0A12;--header:#1A0A12}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+header{background:var(--header);color:#fff;padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(192,36,78,.25);position:sticky;top:0;z-index:50}
+.header-brand{display:flex;align-items:center;gap:14px}
+.header-logo{height:34px;width:auto;border-radius:6px}
+.header-divider{width:1px;height:24px;background:rgba(255,255,255,.2)}
+.header-title{font-size:.92rem;font-weight:700;color:#fff;letter-spacing:.02em}
+.header-sub{font-size:.7rem;color:rgba(255,255,255,.55);margin-top:1px}
+.badge-ter{background:rgba(3,105,161,.4);border:1px solid rgba(3,105,161,.6);border-radius:20px;padding:4px 12px;font-size:.72rem;font-weight:700;color:#fff;letter-spacing:.04em}
+.wrap{max-width:680px;margin:0 auto;padding:20px 16px}
+.card{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(26,10,18,.06)}
+.card h2{font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+form{display:flex;flex-direction:column;gap:12px}
+label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.9rem;background:#FAF8FB;transition:all .2s;font-family:'Inter',sans-serif}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:#fff;box-shadow:0 0 0 3px rgba(192,36,78,.08)}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:480px){.r2,.r3{grid-template-columns:1fr}}
+.btn{width:100%;padding:13px;border-radius:9px;border:none;font-size:.92rem;font-weight:800;cursor:pointer;background:var(--p);color:#fff;transition:all .2s;font-family:'Inter',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 3px 10px rgba(192,36,78,.35)}
+.btn:hover{background:var(--pd);transform:translateY(-1px)}
+.btn:disabled{background:#c8b4bc;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-add{background:#0369a1;box-shadow:0 2px 8px rgba(3,105,161,.3);font-size:.82rem;padding:10px 16px;width:auto;text-transform:none}
+.btn-add:hover{background:#0284c7}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:480px){.stats{grid-template-columns:1fr 1fr}}
+.stat{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:14px;text-align:center;box-shadow:0 1px 4px rgba(26,10,18,.05)}
+.stat .v{font-size:1.8rem;font-weight:900;color:var(--p);line-height:1.1}
+.stat.grn .v{color:var(--ok)}.stat.red .v{color:var(--danger)}.stat.ora .v{color:#d97706}.stat.inf .v{color:#0369a1}
+.stat .l{font-size:.63rem;color:var(--muted);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.alert{padding:12px 14px;border-radius:8px;font-size:.88rem;margin-bottom:12px;display:flex;align-items:center;gap:9px}
+.al-ok{background:#d1fae5;border-left:4px solid var(--ok);color:#065f46}
+.al-err{background:#fee2e2;border-left:4px solid var(--danger);color:#991b1b}
+.sync{font-size:.72rem;color:var(--muted);text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:5px}
+.sync span{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hist-item{padding:12px 0;border-bottom:1px solid var(--bdr)}
+.hist-item:last-child{border-bottom:none}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
+.b-ok{background:#d1fae5;color:#065f46}.b-bad{background:#fee2e2;color:#991b1b}
+.b-warn{background:#fef3c7;color:#92400e}.b-info{background:#e0f2fe;color:#0369a1}
+.chip{display:inline-flex;align-items:center;gap:5px;background:#e0f2fe;border:1px solid #bae6fd;border-radius:20px;padding:5px 12px;font-size:.8rem;font-weight:600;color:#0369a1}
+.chip-x{background:none;border:none;cursor:pointer;color:#dc2626;font-weight:900;font-size:.9rem;padding:0 0 0 2px;line-height:1}
+.itens-box{background:#FAF8FB;border:1.5px dashed var(--bdr);border-radius:10px;padding:14px;margin:4px 0}
+.itens-box h3{font-size:.68rem;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.add-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:10px}
+.add-row input{flex:1}
+.add-row .v-input{width:130px;flex:none}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:6px;min-height:32px;margin-bottom:4px}
+.total-line{font-size:.82rem;color:var(--ok);font-weight:700;margin-top:8px;text-align:right}
+.tag-val{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.filter-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;padding:10px 0 0}
+.f-chip{background:#f3f4f6;border:1px solid var(--bdr);border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:600;color:#374151;cursor:pointer;transition:all .15s}
+.f-chip:hover,.f-chip.on{background:#e0f2fe;border-color:#bae6fd;color:#0369a1}
+.empty{text-align:center;padding:32px;color:var(--muted);font-size:.88rem}
+.section-lbl{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:6px 12px;border-radius:6px;margin:14px 0 8px}
+.sl-pend{background:#fef3c7;color:#92400e}
+.sl-ok{background:#d1fae5;color:#065f46}
+.sl-bad{background:#fee2e2;color:#991b1b}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <img src="livup-logo.png" alt="LivUp" class="header-logo">
+    <div class="header-divider"></div>
+    <div>
+      <div class="header-title">Gestão de Balanças</div>
+      <div class="header-sub">Terceirizada · Orçamentos e serviços</div>
+    </div>
+  </div>
+  <span class="badge-ter">🔧 TERCEIRIZADA</span>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando</div></div>
+    <div class="stat grn"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovados</div></div>
+    <div class="stat red"><div class="v" id="st-reprov">—</div><div class="l">❌ Reprovados</div></div>
+    <div class="stat inf"><div class="v" id="st-total">—</div><div class="l">📋 Total enviado</div></div>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <div class="card">
+    <h2>🔧 Registrar orçamento de reparo</h2>
+    <form id="form-orc" onsubmit="registrar(event)">
+
+      <div>
+        <label>TAG da Balança *</label>
+        <input type="text" id="o-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
+          style="font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase"
+          oninput="this.value=this.value.toUpperCase()">
+        <datalist id="tag-list"></datalist>
+      </div>
+
+      <div class="r2">
+        <div>
+          <label>N° da O.S.</label>
+          <input type="text" id="o-os" placeholder="Ex: OS-2026-001">
+        </div>
+        <div>
+          <label>Data do orçamento *</label>
+          <input type="date" id="o-data" required>
+        </div>
+      </div>
+
+      <div>
+        <label>Data prevista de entrega na LivUp</label>
+        <input type="date" id="o-entrega">
+      </div>
+
+      <!-- ITENS / PEÇAS -->
+      <div class="itens-box">
+        <h3>🔩 Peças trocadas / Serviços executados</h3>
+        <div class="add-row">
+          <div style="flex:1">
+            <label>Descrição</label>
+            <input type="text" id="item-desc" placeholder="Ex: Teclado, Sensor de carga, Calibração...">
+          </div>
+          <div class="v-input">
+            <label>Valor (R$)</label>
+            <input type="number" id="item-val" step="0.01" min="0" placeholder="0,00">
+          </div>
+          <button type="button" onclick="addItem()" class="btn btn-add">+ Adicionar</button>
+        </div>
+        <div class="chips-wrap" id="chips">
+          <span style="color:var(--muted);font-size:.8rem;font-style:italic">Nenhum item adicionado ainda...</span>
+        </div>
+        <div class="total-line" id="total-line" style="display:none"></div>
+      </div>
+
+      <div>
+        <label>Valor total do orçamento (R$)</label>
+        <input type="number" id="o-valor" step="0.01" min="0" placeholder="0,00"
+          style="font-size:1.1rem;font-weight:800;color:var(--ok)"
+          oninput="sincTotal()">
+        <div style="font-size:.72rem;color:var(--muted);margin-top:4px">Preenchido automaticamente pela soma dos itens — pode ajustar manualmente.</div>
+      </div>
+
+      <button type="submit" class="btn" id="btn-env">Enviar orçamento para aprovação</button>
+    </form>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="card">
+    <h2>📋 Orçamentos enviados</h2>
+    <div class="sync"><span></span>Atualizado em tempo real</div>
+
+    <!-- Filtros por serviço/peça -->
+    <div id="filter-bar" class="filter-bar" style="display:none"></div>
+
+    <div id="hist-orc"><div class="empty">Carregando...</div></div>
+  </div>
+</div>
+
+<script>
+const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
+let itens = [];
+let filtroAtivo = null;
+let _orcamentos = [];
+
+const TAGS = ["AS-BA-BL-87","AS-BL-001","AS-BL-002","AS-BL-003","AS-BL-004","AS-BL-005","AS-BL-006","AS-BL-007","AS-BL-008","AS-BL-009","AS-BL-010","AS-BL-011","AS-BL-012","AS-BL-013","AS-BL-014","AS-BL-015","AS-BL-016","AS-BL-018","AS-BL-019","AS-BL-020","AS-BL-021","AS-BL-022","AS-BL-023","AS-BL-024","AS-BL-025","AS-BL-026","AS-BL-027","AS-BL-029","AS-BL-030","AS-BL-031","AS-BL-032","AS-BL-033","AS-BL-034","AS-BL-035","AS-BL-036","AS-BL-037","AS-BL-038","AS-BL-039","AS-BL-040","AS-BL-041","AS-BL-042","AS-BL-043","AS-BL-044","AS-BL-045","AS-BL-046","AS-BL-047","AS-BL-048","AS-BL-049","AS-BL-050","AS-BL-051","AS-BL-052","AS-BL-053","AS-BL-054","AS-BL-055","AS-BL-056","AS-BL-057","AS-BL-058","AS-BL-059","AS-BL-060","AS-BL-061","AS-BL-062","AS-BL-063","AS-BL-064","AS-BL-065","AS-BL-066","AS-BL-067","AS-BL-068","AS-BL-069","AS-BL-070","AS-BL-071","AS-BL-072","AS-BL-073","AS-BL-074","AS-BL-075","AS-BL-076","AS-BL-077","AS-BL-078","AS-BL-079","AS-BL-081","AS-BL-082","AS-BL-083","AS-BL-087","AS-BL-089","AS-BL-090","AS-BL-091","AS-BL-092","AS-BL-093","AS-BL-094","AS-BL-096","AS-BL-097","AS-BL-098","AS-BL-099","AS-BL-100","AS-BL-101","AS-BL-102","AS-BL-103","AS-BL-104","AS-BL-105","AS-BL-106","AS-BL-107","AS-BL-108","AS-BL-109","AS-BL-110","AS-BL-111","AS-BL-112","AS-BL-113","AS-BL-114","AS-BL-115","AS-BL-116","AS-BL-130","AS-BL-132","AS-BL-133","AS-BL-134","AS-BL-135","AS-BL-136","AS-BL-137","AS-BL-138","AS-BL-139","AS-BL-140","AS-BL-141","AS-BL-142","AS-BL-143","AS-BL-144","AS-BL-145","AS-BL-146","AS-BL-147","AS-BL-148","AS-BL-149","AS-BL-150","AS-BL-151","AS-BL-152","AS-BL-153","AS-BL-154","AS-BL-155","AS-BL-156","AS-BL-157","AS-BL-158","AS-BL-159","AS-BL-160","AS-BL-161","AS-BL-162","AS-BL-163","AS-BL-164","AS-BL-165","AS-BL-166","AS-BL-167","AS-BL-168","AS-BL-169","AS-BL-170","AS-BL-171","AS-BL-172","AS-BL-173","AS-BL-174","AS-BL-175","AS-BL-176","AS-BL-177","AS-BL-178","AS-BL-179","AS-BL-180","AS-BL-181","AS-BL-182","AS-BL-183","AS-BL-184","AS-BL-185","AS-BL-186","AS-BL-187","AS-BL-188","AS-BL-189","AS-BL-190","AS-BL-191","AS-BL-192","AS-BL-193","AS-BL-194","AS-BL-195","AS-BL-196","AS-BL-197","AS-BL-198","AS-BL-199","AS-BL-200","AS-BL-201","AS-BL-202","AS-BL-203","AS-BL-204","AS-BL-205","AS-BL-206","AS-BL-207","AS-BL-208","AS-BL-209","AS-BL-210","AS-BL-211","AS-BL-212","AS-BL-213","AS-BL-214","AS-BL-215","AS-BL-216","AS-BL-217","AS-BL-218","AS-BL-219","AS-BL-220","AS-BL-221","AS-BL-222","AS-BL-223","AS-BL-224","AS-BL-225","AS-BL-226","AS-BL-227","AS-BL-228","AS-BL-229","AS-BL-230","AS-BL-231","AS-BL-232","AS-BL-233","AS-BL-234","AS-BL-235","AS-BL-236","AS-BL-237","AS-BL-238","AS-BL-239","AS-BL-240","AS-BL-241","AS-BL-242","AS-BL-243","AS-BL-244","AS-BL-245","AS-BL-246","AS-BL-247","AS-BL-248","AS-BL-249","AS-BL-250","AS-BL-251","AS-BL-252","AS-BL-253","AS-BL-254","AS-BL-255","AS-BL-256","AS-BL-257","AS-BL-258","AS-BL-259","AS-BL-260","AS-BL-261","AS-BL-262","AS-BL-263","AS-BL-264","AS-BL-265","AS-BL-266","AS-BL-267","AS-BL-268","AS-BL-269","AS-BL-270","AS-BL-271"];
+
+document.getElementById('tag-list').innerHTML = TAGS.map(t=>`<option value="${t}">`).join('');
+document.getElementById('o-data').value = new Date().toISOString().slice(0,10);
+
+/* ── Itens ── */
+function addItem(){
+  const desc = document.getElementById('item-desc').value.trim();
+  if(!desc){ document.getElementById('item-desc').focus(); return; }
+  const val  = parseFloat(document.getElementById('item-val').value) || 0;
+  itens.push({desc, valor: val});
+  document.getElementById('item-desc').value = '';
+  document.getElementById('item-val').value  = '';
+  document.getElementById('item-desc').focus();
+  renderChips();
+}
+
+document.getElementById('item-desc').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); addItem(); }
+});
+
+function removeItem(i){
+  itens.splice(i,1);
+  renderChips();
+}
+
+function renderChips(){
+  const total = itens.reduce((s,i)=>s+i.valor, 0);
+  const vc = document.getElementById('chips');
+  if(!itens.length){
+    vc.innerHTML='<span style="color:var(--muted);font-size:.8rem;font-style:italic">Nenhum item adicionado ainda...</span>';
+    document.getElementById('total-line').style.display='none';
+    document.getElementById('o-valor').value='';
+    return;
+  }
+  vc.innerHTML = itens.map((item,i)=>`
+    <span class="chip">
+      🔩 ${item.desc}${item.valor?' · '+fmt(item.valor):''}
+      <button type="button" class="chip-x" onclick="removeItem(${i})" title="Remover">×</button>
+    </span>`).join('');
+  document.getElementById('total-line').style.display='block';
+  document.getElementById('total-line').textContent='Total dos itens: '+fmt(total);
+  document.getElementById('o-valor').value = total.toFixed(2);
+}
+
+function sincTotal(){} // valor manual sobrepõe — ok
+
+/* ── Registrar ── */
+async function registrar(e){
+  e.preventDefault();
+  const tag = document.getElementById('o-tag').value.trim().toUpperCase();
+  const valorInput = parseFloat(document.getElementById('o-valor').value) || 0;
+  const valorItens = itens.reduce((s,i)=>s+i.valor,0);
+  const orc = {
+    tag,
+    numeroOS:          document.getElementById('o-os').value.trim(),
+    dataOrcamento:     document.getElementById('o-data').value,
+    dataPrevistaEntrega: document.getElementById('o-entrega').value,
+    valorTotal:        valorInput || valorItens,
+    itens:             JSON.stringify(itens),
+    status:            'AGUARDANDO',
+    timestamp:         Date.now()
+  };
+
+  const btn = document.getElementById('btn-env');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    const r = await fetch(`${DB}/orcamentos.json`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(orc)
+    });
+    if(!r.ok) throw new Error();
+    itens = [];
+    renderChips();
+    document.getElementById('form-orc').reset();
+    document.getElementById('o-data').value = new Date().toISOString().slice(0,10);
+    showMsg(`✅ Orçamento de <strong>${orc.tag}</strong> enviado! Aguardando aprovação da manutenção.`);
+    carregarDados();
+  } catch(err){
+    showMsg('❌ Erro ao enviar. Verifique sua conexão.','err');
+  }
+  btn.disabled = false; btn.textContent = 'Enviar orçamento para aprovação';
+}
+
+/* ── Carregar dados ── */
+async function carregarDados(){
+  try {
+    const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
+    _orcamentos = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
+    _orcamentos.sort((a,b)=>b.timestamp-a.timestamp);
+
+    const ag     = _orcamentos.filter(o=>o.status==='AGUARDANDO').length;
+    const aprov  = _orcamentos.filter(o=>o.status==='APROVADO').length;
+    const reprov = _orcamentos.filter(o=>o.status==='REPROVADO').length;
+    document.getElementById('st-ag').textContent    = ag;
+    document.getElementById('st-aprov').textContent = aprov;
+    document.getElementById('st-reprov').textContent= reprov;
+    document.getElementById('st-total').textContent = _orcamentos.length;
+
+    renderFiltros();
+    renderHist();
+  } catch(e){ console.error(e); }
+}
+
+function renderFiltros(){
+  const todos = new Set();
+  _orcamentos.forEach(o=>{ parseItens(o.itens).forEach(i=>todos.add(i.desc)); });
+  const fb = document.getElementById('filter-bar');
+  if(!todos.size){ fb.style.display='none'; return; }
+  fb.style.display='flex';
+  fb.innerHTML = '<span style="font-size:.7rem;font-weight:700;color:var(--muted);align-self:center;white-space:nowrap">Filtrar por:</span>'
+    + Array.from(todos).map(d=>`
+      <span class="f-chip${filtroAtivo===d?' on':''}" onclick="toggleFiltro('${d.replace(/'/g,"&#39;")}')">${d}</span>
+    `).join('');
+}
+
+function toggleFiltro(desc){
+  filtroAtivo = filtroAtivo===desc ? null : desc;
+  renderFiltros();
+  renderHist();
+}
+
+function renderHist(){
+  const hist = document.getElementById('hist-orc');
+  let lista = filtroAtivo
+    ? _orcamentos.filter(o=>parseItens(o.itens).some(i=>i.desc===filtroAtivo))
+    : _orcamentos;
+
+  if(!lista.length){
+    hist.innerHTML = filtroAtivo
+      ? `<div class="empty">Nenhum orçamento com "${filtroAtivo}".</div>`
+      : '<div class="empty">Nenhum orçamento enviado ainda.</div>';
+    return;
+  }
+
+  const pend = lista.filter(o=>o.status==='AGUARDANDO');
+  const aprov= lista.filter(o=>o.status==='APROVADO');
+  const repr = lista.filter(o=>o.status==='REPROVADO');
+
+  let html = '';
+  if(pend.length){ html += `<div class="section-lbl sl-pend">⌛ Aguardando aprovação (${pend.length})</div>`+pend.map(renderCard).join(''); }
+  if(aprov.length){ html += `<div class="section-lbl sl-ok">✅ Aprovados (${aprov.length})</div>`+aprov.map(renderCard).join(''); }
+  if(repr.length){ html += `<div class="section-lbl sl-bad">❌ Reprovados (${repr.length})</div>`+repr.map(renderCard).join(''); }
+  hist.innerHTML = html;
+}
+
+function renderCard(o){
+  const its = parseItens(o.itens);
+  const badge = o.status==='APROVADO' ? '<span class="badge b-ok">✅ Aprovado</span>'
+              : o.status==='REPROVADO' ? '<span class="badge b-bad">❌ Reprovado</span>'
+              : '<span class="badge b-warn">⌛ Aguardando</span>';
+  return `
+    <div class="hist-item">
+      <div class="tag-val">
+        <div><strong style="font-size:.95rem">${o.tag}</strong> ${badge}</div>
+        <strong style="color:var(--ok);font-size:.92rem">${fmt(o.valorTotal)}</strong>
+      </div>
+      <div style="color:var(--muted);font-size:.76rem;margin:3px 0">
+        ${o.numeroOS?'O.S.: <strong style="color:var(--txt)">'+o.numeroOS+'</strong> · ':''}
+        Orçamento: ${fd(o.dataOrcamento)}
+        ${o.dataPrevistaEntrega?' · Entrega prev.: <strong>'+fd(o.dataPrevistaEntrega)+'</strong>':''}
+      </div>
+      ${its.length?`<div style="margin:7px 0;display:flex;flex-wrap:wrap;gap:4px">
+        ${its.map(i=>`<span style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:2px 10px;font-size:.75rem;color:#0369a1">🔩 ${i.desc}${i.valor?' · '+fmt(i.valor):''}</span>`).join('')}
+      </div>`:''}
+      ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;margin-top:4px;padding:6px 10px;background:#FAF8FB;border-radius:6px">"${o.obsAprovacao}"</div>`:''}
+      ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:4px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fd(o.dataAprovacao)}${o.aprovadoPor?' por '+o.aprovadoPor:''}</div>`:''}
+    </div>`;
+}
+
+function parseItens(str){ try{ return JSON.parse(str||'[]'); }catch(e){ return []; } }
+function fd(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
+function fmt(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
+function showMsg(txt, tipo='ok'){
+  const el = document.getElementById('msg');
+  el.innerHTML = `<div class="alert al-${tipo==='ok'?'ok':'err'}">${txt}</div>`;
+  if(tipo==='ok') setTimeout(()=>el.innerHTML='', 6000);
+}
+
+carregarDados();
+setInterval(carregarDados, 30000);
+</script>
+</body>
+</html>
