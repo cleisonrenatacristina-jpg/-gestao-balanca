@@ -47,6 +47,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
 .b-ok{background:#d1fae5;color:#065f46}.b-bad{background:#fee2e2;color:#991b1b}
 .b-warn{background:#fef3c7;color:#92400e}.b-pend{background:#f3f4f6;color:#374151}
+.chegada-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.chegada-item:last-child{border-bottom:none}
+.chegada-item strong{color:var(--pd);font-size:.92rem;min-width:90px}
+.btn-chegada{padding:7px 14px;border:none;border-radius:7px;background:var(--ok);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
+.btn-chegada:hover{background:#047857}
 </style>
 </head>
 <body>
@@ -71,6 +76,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
     <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
     <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
     <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
+  </div>
+
+  <!-- CONFIRMAR CHEGADA (balanças que estavam na terceirizada) -->
+  <div class="card" id="card-chegada" style="display:none;border-color:#86efac">
+    <h2 style="color:var(--ok)">📥 Confirmar chegada de balanças</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Balanças que estão na terceirizada e precisam ter a chegada confirmada:</p>
+    <div id="lista-chegada"></div>
   </div>
 
   <!-- FORMULÁRIO -->
@@ -220,6 +232,18 @@ async function registrar(e){
   btn.disabled = false; btn.textContent = 'Registrar entrada';
 }
 
+async function confirmarChegada(fbId, tag){
+  const dataEl = document.getElementById('chegada-data-'+fbId);
+  const dataRetorno = dataEl ? dataEl.value : new Date().toISOString().slice(0,10);
+  if(!dataRetorno){ alert('Informe a data de chegada.'); return; }
+  try {
+    await fetch(`${DB}/ocorrencias/${fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'VOLTOU', dataRetorno})});
+    showMsg(`✅ Chegada de <strong>${tag}</strong> confirmada!`);
+    carregarDados();
+  } catch(e){ showMsg('❌ Erro ao confirmar. Tente novamente.','err'); }
+}
+
 async function carregarDados(){
   try {
     const [ocR] = await Promise.all([
@@ -237,6 +261,24 @@ async function carregarDados(){
     document.getElementById('st-volt').textContent  = volt;
     document.getElementById('st-ag').textContent    = ag;
     document.getElementById('st-aprov').textContent = aprov;
+
+    // Seção de confirmação de chegada
+    const naTerc = ocs.filter(o=>o.status==='SAIU');
+    const cardChegada = document.getElementById('card-chegada');
+    const listaChegada = document.getElementById('lista-chegada');
+    if(naTerc.length){
+      cardChegada.style.display='block';
+      listaChegada.innerHTML = naTerc.map(o=>`
+        <div class="chegada-item">
+          <strong>${o.tag}</strong>
+          <span style="font-size:.78rem;color:var(--muted)">Saiu: ${fd(o.dataQuebra)}${o.setor?' · '+o.setor:''}</span>
+          <input type="date" id="chegada-data-${o.id}" value="${new Date().toISOString().slice(0,10)}"
+            style="padding:6px 10px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.83rem;background:#FAF8FB;width:150px">
+          <button class="btn-chegada" onclick="confirmarChegada('${o.id}','${o.tag}')">📥 Chegou</button>
+        </div>`).join('');
+    } else {
+      cardChegada.style.display='none';
+    }
 
     // Histórico com botão excluir
     const hist = document.getElementById('hist');

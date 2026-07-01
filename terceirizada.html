@@ -67,6 +67,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .sl-pend{background:#fef3c7;color:#92400e}
 .sl-ok{background:#d1fae5;color:#065f46}
 .sl-bad{background:#fee2e2;color:#991b1b}
+.btn-print{display:flex;align-items:center;gap:7px;background:#1e293b;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+.btn-print:hover{background:#0f172a}
+@media print{
+  header,.itens-box,#msg,.btn,.btn-print,.filter-bar,.sync,.chip-x,.section-lbl+div .hist-item .tag-val button,
+  #form-orc,.stats,.wrap>div:first-child{display:none!important}
+  body{background:#fff!important}
+  .card{box-shadow:none!important;border:1px solid #ddd!important}
+  .wrap{max-width:100%!important;padding:8px!important}
+  #print-header{display:block!important}
+  .chip-x{display:none!important}
+}
+#print-header{display:none;text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #ddd}
 </style>
 </head>
 <body>
@@ -156,7 +168,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 
   <!-- HISTÓRICO -->
   <div class="card">
-    <h2>📋 Orçamentos enviados</h2>
+    <div id="print-header">
+      <img src="livup-logo.png" alt="LivUp" style="height:36px;margin-bottom:8px"><br>
+      <strong style="font-size:1rem">Relatório de Orçamentos — Terceirizada</strong><br>
+      <span style="font-size:.8rem;color:#666">Emitido em: <span id="print-data"></span></span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">📋 Orçamentos enviados</h2>
+      <button class="btn-print" onclick="imprimirOrc()">🖨 Imprimir / PDF</button>
+    </div>
     <div class="sync"><span></span>Atualizado em tempo real</div>
 
     <!-- Filtros por serviço/peça -->
@@ -338,6 +358,9 @@ function renderCard(o){
       </div>`:''}
       ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;margin-top:4px;padding:6px 10px;background:#FAF8FB;border-radius:6px">"${o.obsAprovacao}"</div>`:''}
       ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:4px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fd(o.dataAprovacao)}${o.aprovadoPor?' por '+o.aprovadoPor:''}</div>`:''}
+      ${o.status==='AGUARDANDO'?`<div style="margin-top:10px">
+        <button onclick="excluirOrc('${o.id}')" style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🗑 Excluir orçamento</button>
+      </div>`:''}
     </div>`;
 }
 
@@ -349,6 +372,20 @@ function showMsg(txt, tipo='ok'){
   const el = document.getElementById('msg');
   el.innerHTML = `<div class="alert al-${tipo==='ok'?'ok':'err'}">${txt}</div>`;
   if(tipo==='ok') setTimeout(()=>el.innerHTML='', 6000);
+}
+
+async function excluirOrc(id){
+  if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+  try {
+    await fetch(`${DB}/orcamentos/${id}.json`, {method:'DELETE'});
+    showMsg('✅ Orçamento excluído.');
+    carregarDados();
+  } catch(e){ showMsg('❌ Erro ao excluir. Tente novamente.','err'); }
+}
+
+function imprimirOrc(){
+  document.getElementById('print-data').textContent = new Date().toLocaleString('pt-BR');
+  window.print();
 }
 
 carregarDados();

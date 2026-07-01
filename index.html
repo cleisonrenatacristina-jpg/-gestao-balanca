@@ -77,8 +77,10 @@ nav button.active{color:#fff;border-bottom-color:var(--p);font-weight:700}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.g5{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:500px){.g5{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.g5{grid-template-columns:repeat(3,1fr)}#dash-stats{grid-template-columns:repeat(3,1fr)!important}}
+@media(max-width:500px){.g5{grid-template-columns:1fr 1fr}#dash-stats{grid-template-columns:1fr 1fr!important}}
+.btn-print{display:inline-flex;align-items:center;gap:6px;background:#1e293b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+.btn-print:hover{background:#0f172a}
 
 /* ── Stats ─────────────────────────────────────────── */
 .stat{
@@ -151,13 +153,16 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
 .vr-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700}
 .vr-compra{background:#dcfce7;color:#166534}.vr-avaliar{background:#e0f2fe;color:#0369a1}
 @media print{
-  header,nav,#btn-toggle-form,.frow,.actions,.btn,.btn-ia,.painel-card,#alertas,#alertas-meta,#painel-ia-bal,.stat-card button{display:none!important}
+  header,nav,#btn-toggle-form,.frow,.actions,.btn,.btn-ia,.btn-print,.painel-card,#alertas,#alertas-meta,#painel-ia-bal,.stat-card button,#print-trigger-bar{display:none!important}
   .page{display:none!important}
-  #page-varredura-rep{display:block!important;padding:0!important}
+  .page.print-active{display:block!important;padding:0!important}
+  #page-varredura-rep.print-active{display:block!important}
   body{background:#fff!important;font-size:11pt}
   .vr-section{border:1px solid #ddd!important;margin-bottom:12px}
   .cont{max-width:none;padding:0}
   #vr-header-print{display:block!important}
+  #print-header-man{display:block!important}
+  .card{box-shadow:none!important;border:1px solid #eee!important}
 }
 /* Análise de custo */
 .custo-bar-wrap{width:100%;background:#e5e7eb;border-radius:20px;height:8px;margin:4px 0}
@@ -250,8 +255,16 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
       <div class="header-sub">Controle de manutenção · Engenharia</div>
     </div>
   </div>
-  <button onclick="abrirConfigIA()" style="background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.6);color:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:Inter,sans-serif">🔑 Chave IA</button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button onclick="imprimirPagina()" class="btn-print">🖨 Imprimir / PDF</button>
+    <button onclick="abrirConfigIA()" style="background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.6);color:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:Inter,sans-serif">🔑 Chave IA</button>
+  </div>
 </header>
+<div id="print-header-man" style="display:none;text-align:center;padding:12px 0 16px;border-bottom:2px solid #ddd;margin-bottom:16px">
+  <img src="livup-logo.png" alt="LivUp" style="height:36px;margin-bottom:6px"><br>
+  <strong style="font-size:1rem">Gestão de Balanças — LivUp</strong><br>
+  <span style="font-size:.8rem;color:#666">Emitido em: <span id="print-data-man"></span></span>
+</div>
 <nav>
   <button class="active" onclick="goPage('dashboard',this)">Dashboard</button>
   <button onclick="goPage('mes',this)">Lista do Mês</button>
@@ -294,10 +307,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
   <div id="agente-alertas" style="display:none;margin-bottom:14px"></div>
   <div id="alertas"></div>
   <div id="alertas-meta"></div>
-  <div class="g5" style="margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="dash-stats">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
     <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (total)</div></div>
-    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">Aguardando aprovação</div></div>
+    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">⌛ Aguard. aprovação manutenção</div></div>
+    <div class="stat" style="border-color:#bae6fd;background:#f0f9ff"><div class="v" style="color:#0369a1" id="s-aguard-orc">0</div><div class="l" style="color:#0369a1">🔧 Aguard. aprovação orçamento</div></div>
     <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
     <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
   </div>
@@ -1268,6 +1282,14 @@ function getStatus(o){
 }
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
+function imprimirPagina(){
+  const ativa = document.querySelector('.page.active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('print-active'));
+  if(ativa) ativa.classList.add('print-active');
+  document.getElementById('print-data-man').textContent = new Date().toLocaleString('pt-BR');
+  window.print();
+  if(ativa) ativa.classList.remove('print-active');
+}
 function goPage(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
@@ -1402,6 +1424,12 @@ function renderDashboard(){
   document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
   document.getElementById('s-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
   document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+  // Orçamentos aguardando aprovação (terceirizada)
+  fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
+    const n=d?Object.values(d).filter(o=>o.status==='AGUARDANDO').length:0;
+    const el=document.getElementById('s-aguard-orc');
+    if(el){ el.textContent=n; el.closest('.stat').style.borderColor=n>0?'#f59e0b':'';}
+  }).catch(()=>{});
 
   // Barra do mês atual
   const mesLabel=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
