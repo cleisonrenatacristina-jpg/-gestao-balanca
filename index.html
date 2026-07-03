@@ -92,6 +92,8 @@ nav button.active{color:#fff;border-bottom-color:var(--p);font-weight:700}
 .stat .l{font-size:.68rem;color:var(--muted);margin-top:5px;font-weight:500;letter-spacing:.03em;text-transform:uppercase}
 .stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}
 .stat.ora .v{color:#d97706}.stat.pur .v{color:#7c3aed}
+.stat.inf .v{color:#0369a1}
+.stat .sub{font-size:.63rem;color:var(--muted);margin-top:4px}
 
 /* ── Forms ─────────────────────────────────────────── */
 form{display:flex;flex-direction:column;gap:10px}
@@ -324,6 +326,29 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
     <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Custo acumulado por balança (top 15)</div><div class="ch"><canvas id="cC"></canvas></div></div>
   </div>
   <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras mensais — últimos 6 meses</div><div class="ch"><canvas id="cH"></canvas></div></div>
+
+  <!-- ═══ DASHBOARD DE TEMPOS — ciclo de vida do reparo ═══ -->
+  <div class="card">
+    <div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">⏱ Dashboard de Tempos — Ciclo do reparo (médias, em dias)</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="stat inf">
+        <div class="v" id="t-orc-aprov">—</div>
+        <div class="l">🔧 Orçamento → Aprovação</div>
+        <div class="sub" id="t-orc-aprov-n">—</div>
+      </div>
+      <div class="stat ora">
+        <div class="v" id="t-reg-saida">—</div>
+        <div class="l">📦 Registro almoxarifado → Saída p/ terceirizada</div>
+        <div class="sub" id="t-reg-saida-n">—</div>
+      </div>
+      <div class="stat grn">
+        <div class="v" id="t-aprov-entrada">—</div>
+        <div class="l">✅ Aprovação → Entrada na fábrica</div>
+        <div class="sub" id="t-aprov-entrada-n">—</div>
+      </div>
+    </div>
+  </div>
+
   <div class="g2">
     <div class="card"><h2>⚡ Reincidências — quebrou em menos de 7 dias após retorno</h2><div id="t-reinc"></div></div>
     <div class="card"><h2>🗑 Balanças descartadas</h2><div id="t-descartadas-dash"></div></div>
@@ -3150,7 +3175,8 @@ function renderAprovCard(o, comAcoes){
         ${its.map(i=>`<span class="aprov-item-chip">🔩 ${i.desc}${i.valor?' · '+fmtOrc(i.valor):''}</span>`).join('')}
       </div>`:'<div style="font-size:.8rem;color:var(--muted);font-style:italic">Sem itens detalhados.</div>'}
       ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;padding:6px 10px;background:#FAF8FB;border-radius:6px;margin-top:6px">"${o.obsAprovacao}"</div>`:''}
-      ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:6px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fdOrc(o.dataAprovacao)}${o.aprovadoPor?' — '+o.aprovadoPor:''}</div>`:''}
+      ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:6px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fdOrc(o.dataAprovacao)}${o.aprovadoPor?' — '+o.aprovadoPor:''}${diasTextoOrc(o)}</div>`
+        :`<div style="font-size:.73rem;color:#b45309;margin-top:6px">${diasTextoOrc(o)}</div>`}
       ${comAcoes?`
         <textarea id="obs-${o.id}" class="obs-input" rows="2" placeholder="Observação opcional (motivo da reprovação, condições de aprovação...)"></textarea>
         <div class="aprov-actions">
@@ -3178,6 +3204,19 @@ async function decideOrc(id, status){
 }
 
 function parseItensOrc(str){ try{ return JSON.parse(str||'[]'); }catch(e){ return []; } }
+function diasEntreOrc(d1,d2){ return Math.round((new Date(d2+'T00:00:00')-new Date(d1+'T00:00:00'))/86400000); }
+function diasTextoOrc(o){
+  if(!o.dataOrcamento) return '';
+  if(o.status==='AGUARDANDO'){
+    const dias = diasEntreOrc(o.dataOrcamento, new Date().toISOString().slice(0,10));
+    return `⏳ ${dias} dia${dias===1?'':'s'} aguardando aprovação`;
+  }
+  if(o.dataAprovacao){
+    const dias = diasEntreOrc(o.dataOrcamento, o.dataAprovacao);
+    return ` · levou ${dias} dia${dias===1?'':'s'} até a decisão`;
+  }
+  return '';
+}
 function fdOrc(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
 function fmtOrc(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
