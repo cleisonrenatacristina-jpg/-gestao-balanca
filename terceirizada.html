@@ -71,7 +71,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .btn-print:hover{background:#0f172a}
 @media print{
   header,.itens-box,#msg,.btn,.btn-print,.filter-bar,.sync,.chip-x,.section-lbl+div .hist-item .tag-val button,
-  #form-orc,.stats,.wrap>div:first-child,.no-print,#confirm-overlay{display:none!important}
+  #form-orc,.stats,.wrap>div:first-child,.no-print,#confirm-overlay,#card-recolher{display:none!important}
   body{background:#fff!important}
   .card{box-shadow:none!important;border:1px solid #ddd!important}
   .wrap{max-width:100%!important;padding:8px!important}
@@ -109,6 +109,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
       <div class="v" id="st-tempo-aprov" style="font-size:1.4rem">—</div>
       <div class="l">⏱ Tempo médio: orçamento gerado → aprovação da manutenção</div>
     </div>
+  </div>
+
+  <!-- BALANÇAS QUEBRADAS PARA RECOLHER -->
+  <div class="card" id="card-recolher" style="border:1.5px solid #fca5a5">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0;color:#991b1b">🚨 Balanças quebradas para recolher na LivUp</h2>
+      <span class="badge b-bad" id="rec-count" style="font-size:.8rem">0</span>
+    </div>
+    <div id="rec-lista"><div class="empty">Carregando...</div></div>
   </div>
 
   <!-- FORMULÁRIO -->
@@ -384,6 +393,45 @@ async function carregarDados(){
     renderTempoAprovacao();
     renderFiltros();
     renderHist();
+  } catch(e){ console.error(e); }
+
+  carregarPendentesRecolha();
+}
+
+async function carregarPendentesRecolha(){
+  try {
+    const data = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
+    const ocs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
+    const pendentes = ocs.filter(o =>
+      o.tag && o.dataQuebra && !o.dataRetirada && !o.dataRetorno &&
+      o.status !== 'DESCARTADO' && o.status !== 'VOLTOU'
+    ).sort((a,b)=>(a.dataQuebra||'').localeCompare(b.dataQuebra||''));
+
+    document.getElementById('rec-count').textContent = pendentes.length;
+    const el = document.getElementById('rec-lista');
+    if(!pendentes.length){
+      el.innerHTML = '<div class="empty">Nenhuma balança aguardando coleta. ✅</div>';
+      return;
+    }
+    const hoje = new Date().toISOString().slice(0,10);
+    el.innerHTML = pendentes.map(o=>{
+      const dias = Math.round((new Date(hoje+'T00:00:00')-new Date(o.dataQuebra+'T00:00:00'))/86400000);
+      const bal = infoBal(o.tag);
+      return `
+        <div class="hist-item">
+          <div class="tag-val">
+            <div><strong style="font-size:.95rem">${o.tag}</strong></div>
+            <span class="badge b-bad">${dias} dia${dias===1?'':'s'} parada</span>
+          </div>
+          ${bal?`<div style="color:var(--muted);font-size:.74rem;margin:2px 0">⚖️ ${bal}</div>`:''}
+          <div style="color:var(--muted);font-size:.76rem;margin:3px 0">
+            Quebrou em: ${fd(o.dataQuebra)}
+            ${o.setor?' · Setor: <strong style="color:var(--txt)">'+o.setor+'</strong>':''}
+            ${o.turno?' · '+o.turno:''}
+          </div>
+          ${o.problema?`<div style="font-size:.8rem;color:var(--txt);font-style:italic;margin-top:2px">"${o.problema}"</div>`:''}
+        </div>`;
+    }).join('');
   } catch(e){ console.error(e); }
 }
 
