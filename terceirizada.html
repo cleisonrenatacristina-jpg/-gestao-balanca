@@ -111,13 +111,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
     </div>
   </div>
 
-  <!-- BALANÇAS QUEBRADAS PARA RECOLHER -->
-  <div class="card" id="card-recolher" style="border:1.5px solid #fca5a5">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h2 style="margin:0;color:#991b1b">🚨 Balanças quebradas para recolher na LivUp</h2>
-      <span class="badge b-bad" id="rec-count" style="font-size:.8rem">0</span>
+  <!-- BALANÇAS QUEBRADAS PARA RECOLHER (banner compacto, recolhível) -->
+  <div class="card" id="card-recolher" style="border:1.5px solid #fca5a5;padding:14px 18px">
+    <div onclick="toggleRecolher()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="font-size:1.25rem">🚨</span>
+        <div style="min-width:0">
+          <div style="font-weight:800;color:#991b1b;font-size:.85rem">Balanças p/ recolher na LivUp</div>
+          <div style="font-size:.72rem;color:var(--muted)" id="rec-resumo">Carregando...</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span class="badge b-bad" id="rec-count" style="font-size:.85rem">0</span>
+        <span id="rec-seta" style="font-size:.75rem;color:var(--muted)">▾</span>
+      </div>
     </div>
-    <div id="rec-lista"><div class="empty">Carregando...</div></div>
+    <div id="rec-lista" style="display:none;margin-top:12px"></div>
   </div>
 
   <!-- FORMULÁRIO -->
@@ -398,6 +407,13 @@ async function carregarDados(){
   carregarPendentesRecolha();
 }
 
+let _recolherAberto = false;
+function toggleRecolher(){
+  _recolherAberto = !_recolherAberto;
+  document.getElementById('rec-lista').style.display = _recolherAberto ? 'block' : 'none';
+  document.getElementById('rec-seta').textContent = _recolherAberto ? '▴' : '▾';
+}
+
 async function carregarPendentesRecolha(){
   try {
     const data = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
@@ -407,7 +423,16 @@ async function carregarPendentesRecolha(){
       o.status !== 'DESCARTADO' && o.status !== 'VOLTOU'
     ).sort((a,b)=>(a.dataQuebra||'').localeCompare(b.dataQuebra||''));
 
-    document.getElementById('rec-count').textContent = pendentes.length;
+    const countEl = document.getElementById('rec-count');
+    const resumoEl = document.getElementById('rec-resumo');
+    countEl.textContent = pendentes.length;
+    if(!pendentes.length){
+      countEl.className = 'badge b-ok';
+      resumoEl.textContent = 'Nenhuma balança aguardando coleta ✅';
+    } else {
+      countEl.className = 'badge b-bad';
+      resumoEl.textContent = `${pendentes.length} balança${pendentes.length===1?'':'s'} parada${pendentes.length===1?'':'s'} — toque para ver`;
+    }
     const el = document.getElementById('rec-lista');
     if(!pendentes.length){
       el.innerHTML = '<div class="empty">Nenhuma balança aguardando coleta. ✅</div>';
