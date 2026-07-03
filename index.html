@@ -3239,13 +3239,10 @@ async function decideOrc(id, status){
 async function excluirOrcamento(id){
   const o = _orcsAprov.find(x=>x.id===id);
   const decidido = o && o.status!=='AGUARDANDO';
-  if(decidido){
-    const rotulo = o.status==='APROVADO'?'APROVADO':'REPROVADO';
-    const digitado = prompt(`Este orçamento de "${o.tag}" já foi ${rotulo}. Excluir vai apagar o registro da decisão permanentemente.\n\nPara confirmar, digite EXCLUIR:`);
-    if(digitado!=='EXCLUIR'){ if(digitado!==null) alert('Exclusão cancelada — texto não confere.'); return; }
-  } else {
-    if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
-  }
+  const msg = decidido
+    ? `O orçamento de "${o.tag}" já foi ${o.status==='APROVADO'?'APROVADO':'REPROVADO'}.\nExcluir vai apagar o registro da decisão permanentemente.\n\nDeseja excluir mesmo?`
+    : 'Excluir este orçamento?\nEsta ação não pode ser desfeita.';
+  if(!(await confirmModal(msg))) return;
   try {
     await fetch(`${DB}/orcamentos/${id}.json`,{method:'DELETE'});
     carregarAprovacoes();
@@ -3272,6 +3269,31 @@ function fmtOrc(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFra
 // Carrega aprovações ao entrar na aba e periodicamente
 carregarAprovacoes();
 setInterval(carregarAprovacoes, 30000);
+</script>
+
+<!-- MODAL DE CONFIRMAÇÃO -->
+<div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,10,18,.5);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;padding:22px;max-width:360px;width:100%;box-shadow:0 10px 40px rgba(26,10,18,.3)">
+    <div id="confirm-msg" style="font-size:.92rem;color:#1A0A12;margin-bottom:18px;white-space:pre-line"></div>
+    <div style="display:flex;gap:10px">
+      <button id="confirm-nao" style="flex:1;padding:11px;border-radius:8px;border:1.5px solid #EAE6EC;background:#fff;color:#1A0A12;font-weight:700;font-size:.88rem;cursor:pointer">Não</button>
+      <button id="confirm-sim" style="flex:1;padding:11px;border-radius:8px;border:none;background:#dc2626;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">Sim, excluir</button>
+    </div>
+  </div>
+</div>
+<script>
+function confirmModal(msg){
+  return new Promise(resolve=>{
+    const overlay = document.getElementById('confirm-overlay');
+    document.getElementById('confirm-msg').textContent = msg;
+    overlay.style.display = 'flex';
+    const limpar = (r)=>{ overlay.style.display='none'; simBtn.onclick=null; naoBtn.onclick=null; resolve(r); };
+    const simBtn = document.getElementById('confirm-sim');
+    const naoBtn = document.getElementById('confirm-nao');
+    simBtn.onclick = ()=>limpar(true);
+    naoBtn.onclick = ()=>limpar(false);
+  });
+}
 </script>
 </body>
 </html>
