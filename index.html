@@ -3134,11 +3134,13 @@ setInterval(sincronizarFirebase, 30000);
 /* ══════════════════════════════════════════════════════════
    APROVAÇÕES DE ORÇAMENTOS — TERCEIRIZADA
    ══════════════════════════════════════════════════════════ */
+let _orcsAprov = [];
 async function carregarAprovacoes(){
   try {
     const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
     const orcs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
     orcs.sort((a,b)=>b.timestamp-a.timestamp);
+    _orcsAprov = orcs;
 
     const ag    = orcs.filter(o=>o.status==='AGUARDANDO').length;
     const aprov = orcs.filter(o=>o.status==='APROVADO').length;
@@ -3235,7 +3237,15 @@ async function decideOrc(id, status){
   } catch(e){ alert('Erro ao salvar. Tente novamente.'); }
 }
 async function excluirOrcamento(id){
-  if(!confirm('Excluir este orçamento/aprovação? Esta ação não pode ser desfeita.')) return;
+  const o = _orcsAprov.find(x=>x.id===id);
+  const decidido = o && o.status!=='AGUARDANDO';
+  if(decidido){
+    const rotulo = o.status==='APROVADO'?'APROVADO':'REPROVADO';
+    const digitado = prompt(`Este orçamento de "${o.tag}" já foi ${rotulo}. Excluir vai apagar o registro da decisão permanentemente.\n\nPara confirmar, digite EXCLUIR:`);
+    if(digitado!=='EXCLUIR'){ if(digitado!==null) alert('Exclusão cancelada — texto não confere.'); return; }
+  } else {
+    if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+  }
   try {
     await fetch(`${DB}/orcamentos/${id}.json`,{method:'DELETE'});
     carregarAprovacoes();

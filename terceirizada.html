@@ -104,6 +104,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
     <div class="stat red"><div class="v" id="st-reprov">—</div><div class="l">❌ Reprovados</div></div>
     <div class="stat inf"><div class="v" id="st-total">—</div><div class="l">📋 Total enviado</div></div>
   </div>
+  <div class="stats" style="grid-template-columns:1fr">
+    <div class="stat inf">
+      <div class="v" id="st-tempo-aprov" style="font-size:1.4rem">—</div>
+      <div class="l">⏱ Tempo médio: orçamento gerado → aprovação da manutenção</div>
+    </div>
+  </div>
 
   <!-- FORMULÁRIO -->
   <div class="card">
@@ -290,6 +296,7 @@ async function carregarDados(){
     document.getElementById('st-reprov').textContent= reprov;
     document.getElementById('st-total').textContent = _orcamentos.length;
 
+    renderTempoAprovacao();
     renderFiltros();
     renderHist();
   } catch(e){ console.error(e); }
@@ -365,6 +372,16 @@ function renderCard(o){
     </div>`;
 }
 
+function renderTempoAprovacao(){
+  const decididos = _orcamentos.filter(o=>o.status==='APROVADO' && o.dataOrcamento && o.dataAprovacao);
+  const dias = decididos.map(o=>diasEntre(o.dataOrcamento,o.dataAprovacao)).filter(d=>d>=0);
+  const el = document.getElementById('st-tempo-aprov');
+  if(!el) return;
+  if(!dias.length){ el.textContent = '—'; return; }
+  const media = dias.reduce((s,d)=>s+d,0)/dias.length;
+  el.textContent = media.toFixed(1).replace('.',',') + ' dia(s) · ' + dias.length + ' orçamento(s)';
+}
+
 function parseItens(str){ try{ return JSON.parse(str||'[]'); }catch(e){ return []; } }
 function diasEntre(d1,d2){ return Math.round((new Date(d2+'T00:00:00')-new Date(d1+'T00:00:00'))/86400000); }
 function diasTexto(o){
@@ -389,7 +406,15 @@ function showMsg(txt, tipo='ok'){
 }
 
 async function excluirOrc(id){
-  if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+  const o = _orcamentos.find(x=>x.id===id);
+  const decidido = o && o.status!=='AGUARDANDO';
+  if(decidido){
+    const rotulo = o.status==='APROVADO'?'APROVADO':'REPROVADO';
+    const digitado = prompt(`Este orçamento de "${o.tag}" já foi ${rotulo}. Excluir vai apagar o registro da decisão permanentemente.\n\nPara confirmar, digite EXCLUIR:`);
+    if(digitado!=='EXCLUIR'){ if(digitado!==null) showMsg('❌ Exclusão cancelada — texto não confere.','err'); return; }
+  } else {
+    if(!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+  }
   try {
     await fetch(`${DB}/orcamentos/${id}.json`, {method:'DELETE'});
     showMsg('✅ Orçamento excluído.');
