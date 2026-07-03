@@ -1287,6 +1287,12 @@ function aplicarPrecosMercado(){
 function fmt(v){return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fd(s){if(!s)return '—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
 function diffD(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function diasAprovEntrega(o){
+  if(!o.dataAprovacao) return '';
+  if(o.dataRetorno) return `<br><span style="color:var(--muted)">${diffD(o.dataAprovacao,o.dataRetorno)}d até a entrega</span>`;
+  const dias = diffD(o.dataAprovacao, new Date().toISOString().slice(0,10));
+  return `<br><span style="color:#b45309">⏳ ${dias}d aguardando entrega</span>`;
+}
 function nomeBal(id){const b=balancas.find(x=>x.id===id);return b?b.tag:'?';}
 function infoBal(id){const b=balancas.find(x=>x.id===id);return b?`${b.modelo||''} ${b.marca||''}`.trim():'';}
 function mesAtual(){return new Date().toISOString().slice(0,7);}
@@ -1428,6 +1434,19 @@ function renderSelects(){
   if(rEl){ const p=rEl.value; rEl.innerHTML='<option value="">Todas</option>'+optsAll; if(p)rEl.value=p; }
 }
 
+// ── DASHBOARD DE TEMPOS — calcula média de dias entre duas datas de uma lista ──
+function renderTempoStat(lista, campoIni, campoFim, elId, elNId, filtroExtra){
+  const elV=document.getElementById(elId), elN=document.getElementById(elNId);
+  if(!elV) return;
+  let base=(lista||[]).filter(o=>o[campoIni]&&o[campoFim]&&dataValida(o[campoIni])&&dataValida(o[campoFim]));
+  if(filtroExtra) base=base.filter(filtroExtra);
+  const dias=base.map(o=>diffD(o[campoIni],o[campoFim])).filter(d=>d>=0);
+  if(!dias.length){ elV.textContent='—'; if(elN) elN.textContent='Sem dados suficientes'; return; }
+  const media=dias.reduce((s,d)=>s+d,0)/dias.length;
+  elV.textContent=media.toFixed(1).replace('.',',')+'d';
+  if(elN) elN.textContent=`Média de ${dias.length} registro(s) · min ${Math.min(...dias)}d · máx ${Math.max(...dias)}d`;
+}
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
   lerAlertasAgente(); // alertas do agente automático
@@ -1454,7 +1473,16 @@ function renderDashboard(){
     const n=d?Object.values(d).filter(o=>o.status==='AGUARDANDO').length:0;
     const el=document.getElementById('s-aguard-orc');
     if(el){ el.textContent=n; el.closest('.stat').style.borderColor=n>0?'#f59e0b':'';}
+
+    // ⏱ Tempo médio: Orçamento gerado → Aprovação da manutenção
+    const orcs=d?Object.values(d):[];
+    renderTempoStat(orcs,'dataOrcamento','dataAprovacao','t-orc-aprov','t-orc-aprov-n',o=>o.status==='APROVADO');
   }).catch(()=>{});
+
+  // ⏱ Tempo médio: Registro do almoxarifado → Saída para terceirizada
+  renderTempoStat(ocorrencias,'dataQuebra','dataRetirada','t-reg-saida','t-reg-saida-n');
+  // ⏱ Tempo médio: Aprovação → Entrada na fábrica/almoxarifado
+  renderTempoStat(ocorrencias,'dataAprovacao','dataRetorno','t-aprov-entrada','t-aprov-entrada-n');
 
   // Barra do mês atual
   const mesLabel=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
@@ -1776,7 +1804,7 @@ function renderManPend(){
     <th>TAG</th>
     <th>📦 Registro Almoxarifado</th>
     <th>OS</th><th>Saída</th><th>Orçamento</th>
-    <th>Status</th><th>Retorno</th><th>Ação</th>
+    <th>Status</th><th>Aprovação</th><th>Retorno</th><th>Ação</th>
   </tr></thead>
   <tbody>${lista.map(o=>{
     const reinc = isReinc(o);
@@ -1822,6 +1850,7 @@ function renderManPend(){
       <td>${fd(o.dataRetirada)}</td>
       <td>${o.valorOrcamento?fmt(o.valorOrcamento):'—'}</td>
       <td>${statusBadge(st)}${atrasada?'<br><span class="badge b-bad" style="font-size:.65rem">Atrasada</span>':''}</td>
+      <td style="font-size:.78rem">${fd(o.dataAprovacao)}${diasAprovEntrega(o)}</td>
       <td>${fd(o.dataRetorno)}</td>
       <td style="white-space:nowrap;min-width:120px">
         ${stageBtns.length
@@ -1902,12 +1931,12 @@ function renderResumo(){
 
   const tel=document.getElementById('t-todas');
   if(!lista.length){tel.innerHTML='<p class="empty">Nenhuma ocorrência.</p>';return;}
-  tel.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>N° O.S.</th><th>Saída</th><th>Status</th><th>Retorno</th><th>Custo</th></tr></thead>
+  tel.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Turno</th><th>Setor</th><th>N° O.S.</th><th>Saída</th><th>Status</th><th>Aprovação</th><th>Retorno</th><th>Custo</th></tr></thead>
   <tbody>${lista.sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||'')).map(o=>`<tr>
     <td><strong>${nomeBal(o.balancaId)}</strong></td><td>${fd(o.dataQuebra)}</td>
     <td>${o.turno||'—'}</td><td>${o.setor||'—'}</td>
     <td class="os-s">${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td>
-    <td>${statusBadge(getStatus(o))}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td>
+    <td>${statusBadge(getStatus(o))}</td><td style="font-size:.78rem">${fd(o.dataAprovacao)}${diasAprovEntrega(o)}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td>
   </tr>`).join('')}</tbody></table>`;
 }
 document.getElementById('rf-mes').addEventListener('change',renderResumo);
@@ -3184,6 +3213,9 @@ function renderAprovCard(o, comAcoes){
           <button class="btn-aprov btn-nao" onclick="reprovar('${o.id}')">❌ Reprovar</button>
         </div>
       `:''}
+      <div style="margin-top:8px">
+        <button onclick="excluirOrcamento('${o.id}')" style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🗑 ${o.status==='AGUARDANDO'?'Excluir orçamento':'Excluir aprovação'}</button>
+      </div>
     </div>`;
 }
 
@@ -3201,6 +3233,13 @@ async function decideOrc(id, status){
     await fetch(`${DB}/orcamentos/${id}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)});
     carregarAprovacoes();
   } catch(e){ alert('Erro ao salvar. Tente novamente.'); }
+}
+async function excluirOrcamento(id){
+  if(!confirm('Excluir este orçamento/aprovação? Esta ação não pode ser desfeita.')) return;
+  try {
+    await fetch(`${DB}/orcamentos/${id}.json`,{method:'DELETE'});
+    carregarAprovacoes();
+  } catch(e){ alert('Erro ao excluir. Tente novamente.'); }
 }
 
 function parseItensOrc(str){ try{ return JSON.parse(str||'[]'); }catch(e){ return []; } }
