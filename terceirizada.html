@@ -69,6 +69,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .sl-bad{background:#fee2e2;color:#991b1b}
 .btn-print{display:flex;align-items:center;gap:7px;background:#1e293b;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
 .btn-print:hover{background:#0f172a}
+.view-tabs{display:flex;gap:8px;margin-bottom:16px}
+.view-tab{flex:1;padding:11px;text-align:center;border-radius:10px;border:1.5px solid var(--bdr);background:#fff;font-size:.8rem;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.view-tab.on{background:var(--p);border-color:var(--p);color:#fff;box-shadow:0 2px 8px rgba(192,36,78,.3)}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.bar-track{flex:1;min-width:0;background:#f0f9ff;border-radius:6px;height:8px;overflow:hidden}
+.bar-fill{height:100%;background:#0369a1}
 @media print{
   header,.itens-box,#msg,.btn,.btn-print,.filter-bar,.sync,.chip-x,.section-lbl+div .hist-item .tag-val button,
   #form-orc,.stats,.wrap>div:first-child,.no-print,#confirm-overlay,#card-recolher{display:none!important}
@@ -111,6 +117,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
     </div>
   </div>
 
+  <!-- ABAS -->
+  <div class="view-tabs no-print">
+    <div class="view-tab on" id="vt-orc" onclick="goView('orc')">📋 Orçamentos</div>
+    <div class="view-tab" id="vt-hist" onclick="goView('hist')">🔧 Histórico por Balança</div>
+  </div>
+
+  <div id="view-orc">
+
   <!-- BALANÇAS QUEBRADAS PARA RECOLHER (banner compacto, recolhível) -->
   <div class="card" id="card-recolher" style="border:1.5px solid #fca5a5;padding:14px 18px">
     <div onclick="toggleRecolher()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px">
@@ -138,8 +152,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
         <label>TAG da Balança *</label>
         <input type="text" id="o-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
           style="font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase"
-          oninput="this.value=this.value.toUpperCase()">
+          oninput="this.value=this.value.toUpperCase();atualizarTagInfo()">
         <datalist id="tag-list"></datalist>
+        <div id="tag-info-box" style="display:none;margin-top:8px"></div>
       </div>
 
       <div class="r2">
@@ -156,6 +171,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
       <div>
         <label>Data prevista de entrega na LivUp</label>
         <input type="date" id="o-entrega">
+      </div>
+
+      <div>
+        <label>📎 Anexar orçamento em PDF (recebido por e-mail)</label>
+        <input type="file" id="o-pdf" accept="application/pdf">
+        <div id="pdf-status" style="font-size:.74rem;color:var(--muted);margin-top:4px">Ao anexar, o sistema tenta detectar as peças e valores automaticamente — confira e ajuste na lista abaixo.</div>
       </div>
 
       <!-- ITENS / PEÇAS -->
@@ -208,6 +229,39 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 
     <div id="hist-orc"><div class="empty">Carregando...</div></div>
   </div>
+
+  </div><!-- /view-orc -->
+
+  <!-- VIEW: HISTÓRICO POR BALANÇA -->
+  <div id="view-hist" style="display:none">
+
+    <!-- ALERTAS DE REINCIDÊNCIA -->
+    <div class="card" id="card-reinc" style="display:none;border:1.5px solid #fca5a5">
+      <h2 style="color:var(--danger)">🚨 Reincidências (troca &lt; 1 mês na mesma balança)</h2>
+      <div id="reinc-lista"></div>
+    </div>
+
+    <!-- RANKING PEÇAS -->
+    <div class="card">
+      <h2>🔩 Peças que mais quebram</h2>
+      <div id="ranking-pecas"><div class="empty">Carregando...</div></div>
+    </div>
+
+    <!-- RANKING GASTO -->
+    <div class="card">
+      <h2>💰 Balanças que mais geram gasto</h2>
+      <div id="ranking-gasto"><div class="empty">Carregando...</div></div>
+    </div>
+
+    <!-- HISTÓRICO POR TAG -->
+    <div class="card">
+      <h2>📜 Linha do tempo por balança</h2>
+      <input type="text" id="hist-bal-filtro" placeholder="Filtrar por TAG... Ex: AS-BL-185" autocomplete="off"
+        style="margin-bottom:14px;font-weight:700;text-transform:uppercase" oninput="this.value=this.value.toUpperCase();renderHistoricoBalancas(this.value)">
+      <div id="hist-por-balanca"><div class="empty">Carregando...</div></div>
+    </div>
+
+  </div><!-- /view-hist -->
 </div>
 
 <!-- MODAL DE CONFIRMAÇÃO -->
@@ -237,7 +291,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }
+
 function confirmModal(msg){
   return new Promise(resolve=>{
     const overlay = document.getElementById('confirm-overlay');
@@ -254,6 +311,15 @@ const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 let itens = [];
 let filtroAtivo = null;
 let _orcamentos = [];
+let _pdfAnexado = null;
+
+function goView(id){
+  document.getElementById('view-orc').style.display  = id==='orc'  ? 'block':'none';
+  document.getElementById('view-hist').style.display = id==='hist' ? 'block':'none';
+  document.getElementById('vt-orc').classList.toggle('on', id==='orc');
+  document.getElementById('vt-hist').classList.toggle('on', id==='hist');
+  if(id==='hist') renderViewHistorico();
+}
 
 const BAL_INFO = {"AS-BL-185":["LD1050","LIDER","6KG/1gr"],"AS-BL-228":["LD1051","LIDER","6KG/1gr"],"AS-BL-034":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-175":["LD1050","LIDER","6KG/1gr"],"AS-BL-141":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-144":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-201":["LD1050","LIDER","6KG/1gr"],"AS-BL-215":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-150":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-183":["LD1050","LIDER","6KG/1gr"],"AS-BL-199":["LD1050","LIDER","6KG/1gr"],"AS-BL-149":["B-140","LIDER","3KG/0,5gr"],"AS-BL-211":["LD1050","LIDER","6KG/1gr"],"AS-BL-222":["LD1050","LIDER","6KG/1gr"],"AS-BL-004":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-007":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-225":["LD1050","LIDER","6KG/1gr"],"AS-BL-236":["LD1050","LIDER","6KG/1gr"],"AS-BL-173":["LD1050","LIDER","6KG/1gr"],"AS-BL-102":["TI200","TOLEDO","60KG/10G"],"AS-BL-166":["LD1050","LIDER","6KG/1gr"],"AS-BL-170":["LD1050","LIDER","6KG/1gr"],"AS-BL-179":["LD1050","LIDER","6KG/1gr"],"AS-BL-229":["LD1050","LIDER","6KG/1gr"],"AS-BL-172":["LD1050","LIDER","6KG/1gr"],"AS-BL-194":["LD1050","LIDER","6KG/1gr"],"AS-BL-230":["LD1050","LIDER","6KG/1gr"],"AS-BL-052":["9094 PLUS","TOLEDO","3KG/0,5gr"],"AS-BL-045":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-049":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-058":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-043":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-104":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-061":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-181":["LD1050","LIDER","6KG/1gr"],"AS-BL-220":["LD1050","LIDER","6KG/1gr"],"AS-BL-191":["LD1050","LIDER","6KG/1gr"],"AS-BL-177":["LD1050","LIDER","6KG/1gr"],"AS-BL-187":["LD1050","LIDER","6KG/1gr"],"AS-BL-184":["LD1050","LIDER","6KG/1gr"],"AS-BL-238":["LD1050","LIDER","6KG/1gr"],"AS-BL-195":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-208":["LD1050","LIDER","6KG/1gr"],"AS-BL-192":["LD1050","LIDER","6KG/1gr"],"AS-BL-148":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-180":["LD1050","LIDER","6KG/1gr"],"AS-BL-112":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-247":["2098","TOLEDO","32kg/5g"],"AS-BL-250":["2098","TOLEDO","60KG/10G"],"AS-BL-209":["LD1050","LIDER","60KG/10G"],"AS-BL-003":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-089":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-190":["LD1050","LIDER","60KG/10G"],"AS-BL-142":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-207":["LD1050","LIDER","60KG/10G"],"AS-BL-205":["LD1050","LIDER","60KG/10G"],"AS-BL-204":["LD1050","LIDER","60KG/10G"],"AS-BL-188":["LD1050","LIDER","60KG/10G"],"AS-BL-210":["LD1050","LIDER","60KG/10G"],"AS-BL-143":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-189":["LD1050","LIDER","60KG/10G"],"AS-BL-212":["LD1050","LIDER","60KG/10G"],"AS-BL-231":["LD1050","LIDER","60KG/10G"],"AS-BL-242":["TI200","TOLEDO","60KG/10G"],"AS-BL-100":["TI200","TOLEDO","60KG/10G"],"AS-BL-092":["TI200","TOLEDO","60kg/20g"],"AS-BL-099":["TI200","TOLEDO","60KG/10G"],"AS-BL-198":["LD1050","LIDER","60KG/10G"],"AS-BL-146":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-232":["LD1050","LIDER","6KG/1gr"],"AS-BL-134":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-244":["TI200","TOLEDO","32kg/5g"],"AS-BL-147":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-176":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-202":["LD1050","LIDER","6KG/1gr"],"AS-BL-165":["LD1050","LIDER","6KG/1gr"],"AS-BL-167":["LD1050","LIDER","6KG/1gr"],"AS-BL-145":["LD1050","LIDER","3KG/0,5gr"],"AS-BL-091":["TI200","TOLEDO","3KG/0,5gr"],"AS-BL-054":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-200":["LD1050","LIDER","6KG/1gr"],"AS-BL-196":["LD1050","LIDER","6KG/1gr"],"AS-BL-168":["LD1050","LIDER","6KG/1gr"],"AS-BL-171":["LD1050","LIDER","6KG/1gr"],"AS-BL-193":["LD1050","LIDER","6KG/1gr"],"AS-BL-206":["LD1050","LIDER","6KG/1gr"],"AS-BL-233":["LD1050","LIDER","6KG/1gr"],"AS-BL-018":["9094 PLUS","TOLEDO","15KG/5gr"],"AS-BL-140":["LD1050","LIDER","3kg/1g"],"AS-BL-182":["LD1050","LIDER","6KG/1gr"],"AS-BL-103":["9094 PLUS","TOLEDO","6kg/2g"],"AS-BL-252":["TI200","TOLEDO","32kg/5g"],"AS-BL-251":["TI200","TOLEDO","32kg/5g"],"AS-BL-239":["LD1050","LIDER","6KG/1gr"],"AS-BL-246":["TI200","TOLEDO","32kg/5g"],"AS-BL-245":["TI200","TOLEDO","32kg/5g"],"AS-BL-217":["TI200","TOLEDO","60KG/10G"],"AS-BL-001":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-005":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-006":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-008":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-009":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-012":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-013":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-014":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-016":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-021":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-022":["","TOLEDO","3KG A 6KG / div 0,001 kg"],"AS-BL-023":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-024":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-029":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-030":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-031":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-032":["","TOLEDO","3KG A 6KG / div 0,002 kg"],"AS-BL-033":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-035":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-036":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-037":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-038":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-039":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-040":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-041":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-042":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-044":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-046":["","TOLEDO","15KG A 30KG / div 0,002 kg"],"AS-BL-047":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-048":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-050":["","TOLEDO","6KG A 15KG / div 0,001 kg"],"AS-BL-051":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-056":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-060":["","TOLEDO","3KG A 6KG / div 0,001 kg"],"AS-BL-063":["","TOLEDO","15KG A 30KG / div 0,005 kg"],"AS-BL-065":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-066":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-067":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-068":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-071":["","TOLEDO","6KG A 15KG / div 0,005 kg"],"AS-BL-072":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-073":["","TOLEDO","3KG A 6KG / div 0,001 kg"],"AS-BL-075":["","TOLEDO","3KG A 6KG / div 0,001 kg"],"AS-BL-077":["","DIGITRON","0,2 A 1000KG / div 0,2 kg"],"AS-BL-078":["","TOLEDO","0,5 A 1500KG / div 0,5 kg"],"AS-BL-079":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-081":["","MAGNUS","0,001 A 5KG / div 0,001 kg"],"AS-BL-082":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-083":["","MAGNUS","0,001 A 5KG / div 0,001 kg"],"AS-BL-090":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-093":["","BALMAK","0,1 A 300KG / div 0,1 kg"],"AS-BL-094":["","BALMAK","0,1 A 300KG / div 0,1 kg"],"AS-BL-096":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-098":["","BALMAK","0,1 A 300KG / div 0,1 kg"],"AS-BL-101":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-106":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-107":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-108":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-109":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-110":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-111":["","TOLEDO","6KG A 15KG / div 0,002 kg"],"AS-BL-113":["","TOLEDO","15KG A 30KG / div 0,002 kg"],"AS-BL-114":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-116":["","TOLEDO","3KG A 6KG / div 0,001 kg"],"AS-BL-133":["","BALMAK","0,05 A 150KG / div 0,05 kg"],"AS-BL-135":["","BALMAK","0,1 A 300KG / div 0,1 kg"],"AS-BL-136":["","RAMUZA","0,1 A 300KG / div 0,1 kg"],"AS-BL-139":["","BEL","0,001 A 300G / div 0,001 kg"],"AS-BL-151":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-152":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-153":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-154":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-155":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-156":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-157":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-158":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-159":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-160":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-161":["","MAGNUS","40G A 20KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-162":["","MAGNUS","100G A 40KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-163":["","MAGNUS","100G A 40KG / div 0,002 kg ate 4kg - 0,005 kg acima de 4kg"],"AS-BL-164":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-169":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-174":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-178":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-186":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-197":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-203":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-213":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-214":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-216":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-218":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-219":["","LIDER","10 A 500KG / div 0,1kg"],"AS-BL-221":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-223":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-224":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-226":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-227":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-234":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-235":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-237":["","LIDER","0,02 A 6KG / div 0,001kg"],"AS-BL-240":["","TOLEDO","0,5 A 32KG / div 0,005kg"],"AS-BL-241":["","TOLEDO","0,5 A 32KG / div 0,005kg"],"AS-BL-243":["","TOLEDO","0,5 A 32KG / div 0,005kg"],"AS-BL-248":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-249":["","TOLEDO","0,5 A 32KG / div 0,005kg"],"AS-BL-253":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-254":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-255":["","TOLEDO","0,01 A 60KG / div 0,01 kg"],"AS-BL-256":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-257":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-258":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-259":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-260":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-261":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-262":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-263":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-264":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-265":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-266":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-267":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-268":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-269":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-270":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-271":["PBI-X 2421 PRO-R","PRO SOLUÇÕES","0,5 A 05 KG / div 0,005 kg"],"AS-BL-272":["PX5202BR","OHAUS","5,2 / div 0,0001kg"],"AS-BL-273":["PX5202BR","OHAUS","5,2 / div 0,0001kg"]};
 let _specsExtra = {};
@@ -347,6 +413,107 @@ function renderChips(){
 
 function sincTotal(){} // valor manual sobrepõe — ok
 
+/* ── PDF anexado (extração automática de peças) ── */
+function fileParaBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload  = ()=>resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function extrairTextoPDF(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let texto = '';
+  for(let p=1;p<=pdf.numPages;p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    texto += content.items.map(it=>it.str).join(' ') + '\n';
+  }
+  return texto;
+}
+function parseItensPDF(texto){
+  const linhas = texto.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const reValor = /R?\$?\s*([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*$/;
+  const ignorar = /total|subtotal|desconto|frete|cnpj|cpf|telefone|endere[çc]o|^data|validade|orçamento\s*n|página/i;
+  const detectados = [];
+  linhas.forEach(l=>{
+    if(ignorar.test(l)) return;
+    const m = l.match(reValor);
+    if(!m) return;
+    const valor = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
+    if(!valor || valor<=0) return;
+    const desc = l.slice(0, m.index).replace(/[-–—.:\s]+$/,'').trim();
+    if(desc.length<3 || desc.length>80) return;
+    detectados.push({desc, valor});
+  });
+  return detectados;
+}
+document.getElementById('o-pdf').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  const status = document.getElementById('pdf-status');
+  if(!file) return;
+  if(file.type!=='application/pdf'){
+    status.textContent = '❌ Selecione um arquivo PDF.'; status.style.color = 'var(--danger)';
+    e.target.value = ''; return;
+  }
+  status.textContent = '⏳ Lendo PDF e detectando peças...'; status.style.color = 'var(--muted)';
+  try{
+    _pdfAnexado = {nome: file.name, base64: await fileParaBase64(file)};
+    const texto = await extrairTextoPDF(file);
+    const detectados = parseItensPDF(texto);
+    if(detectados.length){
+      detectados.forEach(i=>itens.push(i));
+      renderChips();
+      status.textContent = `✅ "${file.name}" anexado · ${detectados.length} item(ns) detectado(s) automaticamente — confira/ajuste na lista abaixo antes de enviar.`;
+      status.style.color = 'var(--ok)';
+    } else {
+      status.textContent = `✅ "${file.name}" anexado · não detectamos peças automaticamente neste layout — adicione manualmente abaixo.`;
+      status.style.color = 'var(--warn)';
+    }
+  } catch(err){
+    console.error(err);
+    status.textContent = `⚠️ "${file.name}" anexado, mas não deu pra ler o texto (pode ser PDF escaneado/imagem) — adicione os itens manualmente.`;
+    status.style.color = 'var(--warn)';
+  }
+});
+async function verPdf(id){
+  try{
+    const data = await fetch(`${DB}/orcamentosPdf/${id}.json`).then(r=>r.json());
+    if(!data || !data.base64){ showMsg('❌ PDF não encontrado.','err'); return; }
+    const win = window.open('');
+    win.document.title = data.nome || 'Orçamento PDF';
+    win.document.write(`<iframe src="data:application/pdf;base64,${data.base64}" style="position:fixed;inset:0;width:100%;height:100%;border:none"></iframe>`);
+  } catch(e){ showMsg('❌ Erro ao carregar o PDF.','err'); }
+}
+
+/* ── Info da última troca ao digitar a TAG ── */
+function dataChaveOrc(o){ return o.dataAprovacao || o.dataOrcamento || ''; }
+function itensDe(o){ return parseItens(o.itens).map(i=>i.desc).filter(Boolean); }
+function aprovadosPorTag(tag){
+  return _orcamentos.filter(o=>o.tag===tag && o.status==='APROVADO')
+    .sort((a,b)=>dataChaveOrc(a).localeCompare(dataChaveOrc(b)));
+}
+function atualizarTagInfo(){
+  const tag = document.getElementById('o-tag').value.trim().toUpperCase();
+  const box = document.getElementById('tag-info-box');
+  if(!tag){ box.style.display='none'; return; }
+  const hist = aprovadosPorTag(tag);
+  if(!hist.length){ box.style.display='none'; return; }
+  const ultima = hist[hist.length-1];
+  const its = itensDe(ultima);
+  const dias = diasEntre(dataChaveOrc(ultima), new Date().toISOString().slice(0,10));
+  const alerta = dias>=0 && dias<30;
+  box.style.display = 'block';
+  box.className = 'alert ' + (alerta?'al-err':'al-ok');
+  box.innerHTML = `<div>
+      <strong>${alerta?'⚠️':'ℹ️'} Última troca em ${tag}:</strong> ${fd(dataChaveOrc(ultima))} · há ${dias} dia${dias===1?'':'s'}<br>
+      ${its.length?'Peças trocadas: '+its.join(', '):'Sem peças detalhadas'}
+      ${alerta?'<br><strong>Atenção: possível reincidência (menos de 1 mês desde a última troca)!</strong>':''}
+    </div>`;
+}
+
 /* ── Registrar ── */
 async function registrar(e){
   e.preventDefault();
@@ -361,7 +528,9 @@ async function registrar(e){
     valorTotal:        valorInput || valorItens,
     itens:             JSON.stringify(itens),
     status:            'AGUARDANDO',
-    timestamp:         Date.now()
+    timestamp:         Date.now(),
+    temPdf:            !!_pdfAnexado,
+    pdfNome:           _pdfAnexado ? _pdfAnexado.nome : ''
   };
 
   const btn = document.getElementById('btn-env');
@@ -371,10 +540,20 @@ async function registrar(e){
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(orc)
     });
     if(!r.ok) throw new Error();
+    const {name:novoId} = await r.json();
+    if(_pdfAnexado){
+      await fetch(`${DB}/orcamentosPdf/${novoId}.json`, {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(_pdfAnexado)
+      }).catch(()=>{});
+    }
     itens = [];
+    _pdfAnexado = null;
     renderChips();
     document.getElementById('form-orc').reset();
     document.getElementById('o-data').value = new Date().toISOString().slice(0,10);
+    document.getElementById('pdf-status').textContent = 'Ao anexar, o sistema tenta detectar as peças e valores automaticamente — confira e ajuste na lista abaixo.';
+    document.getElementById('pdf-status').style.color = 'var(--muted)';
+    document.getElementById('tag-info-box').style.display = 'none';
     showMsg(`✅ Orçamento de <strong>${orc.tag}</strong> enviado! Aguardando aprovação da manutenção.`);
     carregarDados();
   } catch(err){
@@ -402,9 +581,132 @@ async function carregarDados(){
     renderTempoAprovacao();
     renderFiltros();
     renderHist();
+    if(document.getElementById('view-hist').style.display!=='none') renderViewHistorico();
   } catch(e){ console.error(e); }
 
   carregarPendentesRecolha();
+}
+
+/* ── Histórico por balança (peças, gasto, reincidência) ── */
+function renderViewHistorico(){
+  renderAlertasReinc();
+  renderRankingPecas();
+  renderRankingGasto();
+  renderHistoricoBalancas(document.getElementById('hist-bal-filtro').value.trim().toUpperCase());
+}
+
+function rankingPecas(){
+  const cont = {};
+  _orcamentos.filter(o=>o.status==='APROVADO').forEach(o=>{
+    itensDe(o).forEach(desc=>{
+      const key = desc.trim();
+      if(!key) return;
+      cont[key] = (cont[key]||0)+1;
+    });
+  });
+  return Object.entries(cont).sort((a,b)=>b[1]-a[1]);
+}
+function renderRankingPecas(){
+  const rk = rankingPecas().slice(0,15);
+  const el = document.getElementById('ranking-pecas');
+  if(!rk.length){ el.innerHTML = '<div class="empty">Nenhum orçamento aprovado com peças detalhadas ainda.</div>'; return; }
+  const max = rk[0][1];
+  el.innerHTML = rk.map(([desc,n])=>`
+    <div class="bar-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:3px">${desc}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100).toFixed(0)}%"></div></div>
+      </div>
+      <div style="font-weight:800;color:#0369a1;font-size:.9rem;min-width:30px;text-align:right">${n}×</div>
+    </div>`).join('');
+}
+
+function rankingGasto(){
+  const cont = {};
+  _orcamentos.filter(o=>o.status==='APROVADO').forEach(o=>{
+    cont[o.tag] = (cont[o.tag]||0) + (Number(o.valorTotal)||0);
+  });
+  return Object.entries(cont).sort((a,b)=>b[1]-a[1]);
+}
+function renderRankingGasto(){
+  const rk = rankingGasto().slice(0,15);
+  const el = document.getElementById('ranking-gasto');
+  if(!rk.length){ el.innerHTML = '<div class="empty">Nenhum orçamento aprovado ainda.</div>'; return; }
+  const max = rk[0][1];
+  el.innerHTML = rk.map(([tag,v])=>{
+    const bal = infoBal(tag);
+    return `
+    <div class="bar-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:2px">${tag}${bal?` <span style="font-weight:400;color:var(--muted);font-size:.72rem">· ${bal}</span>`:''}</div>
+        <div class="bar-track"><div class="bar-fill" style="background:var(--p);width:${(v/max*100).toFixed(0)}%"></div></div>
+      </div>
+      <div style="font-weight:800;color:var(--p);font-size:.86rem;min-width:78px;text-align:right">${fmt(v)}</div>
+    </div>`;
+  }).join('');
+}
+
+function reincidenciasPorTag(){
+  const tags = new Set(_orcamentos.filter(o=>o.status==='APROVADO').map(o=>o.tag));
+  const alertas = [];
+  tags.forEach(tag=>{
+    const hist = aprovadosPorTag(tag);
+    for(let i=1;i<hist.length;i++){
+      const d = diasEntre(dataChaveOrc(hist[i-1]), dataChaveOrc(hist[i]));
+      if(d>=0 && d<30) alertas.push({tag, anterior:hist[i-1], atual:hist[i], dias:d});
+    }
+  });
+  return alertas.sort((a,b)=>dataChaveOrc(b.atual).localeCompare(dataChaveOrc(a.atual)));
+}
+function renderAlertasReinc(){
+  const alertas = reincidenciasPorTag();
+  const card = document.getElementById('card-reinc');
+  if(!alertas.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('reinc-lista').innerHTML = alertas.map(a=>{
+    const its = itensDe(a.atual);
+    return `
+    <div class="hist-item">
+      <div class="tag-val">
+        <div><strong style="font-size:.95rem">${a.tag}</strong></div>
+        <span class="badge b-bad">${a.dias} dia${a.dias===1?'':'s'} depois</span>
+      </div>
+      <div style="color:var(--muted);font-size:.76rem;margin:3px 0">Troca anterior: ${fd(dataChaveOrc(a.anterior))} · Nova troca: ${fd(dataChaveOrc(a.atual))}</div>
+      ${its.length?`<div style="font-size:.8rem;margin-top:2px">🔩 ${its.join(', ')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderHistoricoBalancas(filtro){
+  let tags = Array.from(new Set(_orcamentos.filter(o=>o.status==='APROVADO').map(o=>o.tag)));
+  if(filtro) tags = tags.filter(t=>t.includes(filtro));
+  tags.sort((a,b)=>{
+    const ha=aprovadosPorTag(a), hb=aprovadosPorTag(b);
+    return dataChaveOrc(hb[hb.length-1]).localeCompare(dataChaveOrc(ha[ha.length-1]));
+  });
+  const el = document.getElementById('hist-por-balanca');
+  if(!tags.length){ el.innerHTML = '<div class="empty">Nenhum orçamento aprovado ainda.</div>'; return; }
+  el.innerHTML = tags.map(tag=>{
+    const hist = aprovadosPorTag(tag);
+    const bal = infoBal(tag);
+    const linhas = hist.map((o,i)=>{
+      const its = itensDe(o);
+      let gap = '';
+      if(i>0){
+        const d = diasEntre(dataChaveOrc(hist[i-1]), dataChaveOrc(o));
+        gap = ` <span class="badge ${d<30?'b-bad':'b-info'}">${d} dia${d===1?'':'s'} após a anterior</span>`;
+      }
+      return `<div style="padding:6px 0;border-top:1px dashed var(--bdr)">
+        <div style="font-size:.8rem"><strong>${fd(dataChaveOrc(o))}</strong>${gap}</div>
+        ${its.length?`<div style="font-size:.78rem;color:var(--muted)">🔩 ${its.join(', ')}</div>`:''}
+      </div>`;
+    }).join('');
+    return `<div class="hist-item">
+      <div class="tag-val"><strong style="font-size:.95rem">${tag}</strong><span class="badge b-info">${hist.length} troca${hist.length===1?'':'s'}</span></div>
+      ${bal?`<div style="color:var(--muted);font-size:.74rem;margin:2px 0">⚖️ ${bal}</div>`:''}
+      ${linhas}
+    </div>`;
+  }).join('');
 }
 
 let _recolherAberto = false;
@@ -527,7 +829,8 @@ function renderCard(o){
       ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;margin-top:4px;padding:6px 10px;background:#FAF8FB;border-radius:6px">"${o.obsAprovacao}"</div>`:''}
       ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:4px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fd(o.dataAprovacao)}${o.aprovadoPor?' por '+o.aprovadoPor:''}${diasTexto(o)}</div>`
         :`<div style="font-size:.73rem;color:var(--warn,#b45309);margin-top:4px">${diasTexto(o)}</div>`}
-      <div class="no-print" style="margin-top:10px">
+      <div class="no-print" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        ${o.temPdf?`<button onclick="verPdf('${o.id}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">📎 Ver PDF${o.pdfNome?' — '+o.pdfNome:''}</button>`:''}
         <button onclick="excluirOrc('${o.id}')" style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🗑 ${o.status==='AGUARDANDO'?'Excluir orçamento':'Excluir aprovação'}</button>
       </div>
     </div>`;
@@ -575,6 +878,7 @@ async function excluirOrc(id){
   if(!(await confirmModal(msg))) return;
   try {
     await fetch(`${DB}/orcamentos/${id}.json`, {method:'DELETE'});
+    await fetch(`${DB}/orcamentosPdf/${id}.json`, {method:'DELETE'}).catch(()=>{});
     showMsg('✅ Orçamento excluído.');
     carregarDados();
   } catch(e){ showMsg('❌ Erro ao excluir. Tente novamente.','err'); }
