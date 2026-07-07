@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 /* ── LivUp Brand Colors ─────────────────────────────── */
 :root{
@@ -1154,6 +1155,7 @@ const BALANCAS_EXTRA=[
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
 const DATA_VERSION = '8';
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -3208,6 +3210,15 @@ function renderAprovCard(o, comAcoes){
       ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;padding:6px 10px;background:#FAF8FB;border-radius:6px;margin-top:6px">"${o.obsAprovacao}"</div>`:''}
       ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:6px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fdOrc(o.dataAprovacao)}${o.aprovadoPor?' — '+o.aprovadoPor:''}${diasTextoOrc(o)}</div>`
         :`<div style="font-size:.73rem;color:#b45309;margin-top:6px">${diasTextoOrc(o)}</div>`}
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${o.temPdf
+          ? `<button type="button" onclick="verPdfOrc('${o.id}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">📎 Ver PDF${o.pdfNome?' — '+o.pdfNome:''}</button>`
+          : `<label style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">
+              📎 Anexar orçamento em PDF
+              <input type="file" accept="application/pdf" style="display:none" onchange="anexarPdfOrc('${o.id}', this.files[0])">
+            </label>`}
+        <span id="pdf-status-${o.id}" style="font-size:.72rem;color:var(--muted)"></span>
+      </div>
       ${comAcoes?`
         <textarea id="obs-${o.id}" class="obs-input" rows="2" placeholder="Observação opcional (motivo da reprovação, condições de aprovação...)"></textarea>
         <div class="aprov-actions">
@@ -3219,6 +3230,90 @@ function renderAprovCard(o, comAcoes){
         <button onclick="excluirOrcamento('${o.id}')" style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🗑 ${o.status==='AGUARDANDO'?'Excluir orçamento':'Excluir aprovação'}</button>
       </div>
     </div>`;
+}
+
+/* ── PDF anexado direto na Aprovações (recebido por e-mail) ── */
+function fileParaBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload  = ()=>resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function extrairTextoPDF(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let texto = '';
+  for(let p=1;p<=pdf.numPages;p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    texto += content.items.map(it=>it.str).join(' ') + '\n';
+  }
+  return texto;
+}
+function parseItensPDF(texto){
+  const linhas = texto.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const reValor = /R?\$?\s*([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*$/;
+  const ignorar = /total|subtotal|desconto|frete|cnpj|cpf|telefone|endere[çc]o|^data|validade|orçamento\s*n|página/i;
+  const detectados = [];
+  linhas.forEach(l=>{
+    if(ignorar.test(l)) return;
+    const m = l.match(reValor);
+    if(!m) return;
+    const valor = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
+    if(!valor || valor<=0) return;
+    const desc = l.slice(0, m.index).replace(/[-–—.:\s]+$/,'').trim();
+    if(desc.length<3 || desc.length>80) return;
+    detectados.push({desc, valor});
+  });
+  return detectados;
+}
+async function anexarPdfOrc(id, file){
+  if(!file) return;
+  const statusEl = document.getElementById('pdf-status-'+id);
+  if(file.type!=='application/pdf'){
+    if(statusEl){ statusEl.textContent='❌ Selecione um arquivo PDF.'; statusEl.style.color='var(--danger)'; }
+    return;
+  }
+  if(statusEl){ statusEl.textContent='⏳ Lendo PDF...'; statusEl.style.color='var(--muted)'; }
+  try{
+    const base64 = await fileParaBase64(file);
+    await fetch(`${DB}/orcamentosPdf/${id}.json`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome:file.name, base64})
+    });
+
+    const patch = { temPdf:true, pdfNome:file.name };
+    let msgExtra = '';
+    const o = _orcsAprov.find(x=>x.id===id);
+    if(!parseItensOrc(o?.itens).length){
+      try{
+        const detectados = parseItensPDF(await extrairTextoPDF(file));
+        if(detectados.length){
+          patch.itens = JSON.stringify(detectados);
+          patch.valorTotal = detectados.reduce((s,i)=>s+i.valor,0);
+          msgExtra = ` · ${detectados.length} peça(s) detectada(s) automaticamente`;
+        }
+      } catch(e2){ /* PDF escaneado/sem texto — mantém só o anexo */ }
+    }
+    await fetch(`${DB}/orcamentos/${id}.json`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)
+    });
+    if(statusEl){ statusEl.textContent = `✅ PDF anexado${msgExtra}`; statusEl.style.color='var(--ok)'; }
+    carregarAprovacoes();
+  } catch(err){
+    console.error(err);
+    if(statusEl){ statusEl.textContent='❌ Erro ao anexar o PDF. Tente novamente.'; statusEl.style.color='var(--danger)'; }
+  }
+}
+async function verPdfOrc(id){
+  try{
+    const data = await fetch(`${DB}/orcamentosPdf/${id}.json`).then(r=>r.json());
+    if(!data || !data.base64){ alert('PDF não encontrado.'); return; }
+    const win = window.open('');
+    win.document.title = data.nome || 'Orçamento PDF';
+    win.document.write(`<iframe src="data:application/pdf;base64,${data.base64}" style="position:fixed;inset:0;width:100%;height:100%;border:none"></iframe>`);
+  } catch(e){ alert('Erro ao carregar o PDF.'); }
 }
 
 async function aprovar(id){
