@@ -296,6 +296,15 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
       <div class="stat red"><div class="v" id="ap-st-bad">—</div><div class="l">❌ Reprovados</div></div>
     </div>
 
+    <!-- Importar orçamento em PDF -->
+    <div class="card" style="border:1.5px solid #bae6fd;margin-bottom:18px">
+      <div style="font-size:.9rem;font-weight:800;color:#0369a1;margin-bottom:4px">📎 Importar orçamento em PDF</div>
+      <div style="font-size:.76rem;color:var(--muted);margin-bottom:10px">Solte aqui o PDF recebido da terceirizada por e-mail — o sistema separa automaticamente cada balança, OS, peças e preços contidos no arquivo (um PDF pode trazer várias balanças de uma vez).</div>
+      <input type="file" id="import-pdf-file" accept="application/pdf" onchange="lerPdfImportacao(this.files[0])">
+      <div id="import-pdf-status" style="font-size:.78rem;margin-top:6px;color:var(--muted)"></div>
+      <div id="import-pdf-preview" style="margin-top:14px"></div>
+    </div>
+
     <!-- Pendentes de aprovação -->
     <div id="ap-pendentes"></div>
 
@@ -3308,12 +3317,160 @@ async function anexarPdfOrc(id, file){
 }
 async function verPdfOrc(id){
   try{
-    const data = await fetch(`${DB}/orcamentosPdf/${id}.json`).then(r=>r.json());
+    const o = _orcsAprov.find(x=>x.id===id);
+    const refId = (o && o.pdfRef) || id;
+    const data = await fetch(`${DB}/orcamentosPdf/${refId}.json`).then(r=>r.json());
     if(!data || !data.base64){ alert('PDF não encontrado.'); return; }
     const win = window.open('');
     win.document.title = data.nome || 'Orçamento PDF';
     win.document.write(`<iframe src="data:application/pdf;base64,${data.base64}" style="position:fixed;inset:0;width:100%;height:100%;border:none"></iframe>`);
   } catch(e){ alert('Erro ao carregar o PDF.'); }
+}
+
+/* ── Importar orçamento em PDF (várias balanças no mesmo arquivo) ── */
+function normalizarTag(raw){
+  const t = raw.toUpperCase().replace(/\s+/g,'');
+  const m = t.match(/^AS-?(BA-?)?BL-?(\d+)$/);
+  if(!m) return t;
+  const numero = m[2].padStart(3,'0');
+  return m[1] ? `AS-BA-BL-${numero}` : `AS-BL-${numero}`;
+}
+function parseOrcamentoPDF(texto){
+  const linhas = texto.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const reTag      = /Patrim\.?:?\s*(AS\s*-?\s*(?:BA\s*-?\s*)?BL\s*-?\s*\d+)/i;
+  const reOS       = /OS:?\s*(\d+)/i;
+  const reValor    = /R?\$?\s*([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*$/;
+  const reIgnorar  = /subtotal|desconto|frete|cnpj|cpf|telefone|endere[çc]o|forma de pagamento|prazo|validade|proposta|página|razão social|contato:/i;
+
+  const blocos = [];
+  let atual = null;
+  linhas.forEach(l=>{
+    const mTag = l.match(reTag);
+    if(mTag){
+      if(atual) blocos.push(atual);
+      const mOS = l.match(reOS);
+      atual = { tag: normalizarTag(mTag[1]), os: mOS?mOS[1]:'', itens: [], valorTotal: 0 };
+      return;
+    }
+    if(!atual) return;
+    if(/valor\s*total/i.test(l)){
+      if(!/do\s*or[çc]amento/i.test(l)){
+        const mv = l.match(reValor);
+        if(mv) atual.valorTotal = parseFloat(mv[1].replace(/\./g,'').replace(',','.'));
+      }
+      return;
+    }
+    if(reIgnorar.test(l)) return;
+    const mv = l.match(reValor);
+    if(!mv) return;
+    const valor = parseFloat(mv[1].replace(/\./g,'').replace(',','.'));
+    if(!valor || valor<=0) return;
+    const desc = l.slice(0, mv.index).replace(/[-–—.:\s]+$/,'').trim();
+    if(desc.length<2 || desc.length>80) return;
+    atual.itens.push({desc, valor});
+  });
+  if(atual) blocos.push(atual);
+  return blocos;
+}
+function detectarDataProposta(texto){
+  const m = texto.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if(!m) return new Date().toISOString().slice(0,10);
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+let _importBlocos = [];
+let _importPdf = null;
+let _importData = '';
+
+async function lerPdfImportacao(file){
+  const status = document.getElementById('import-pdf-status');
+  const prev   = document.getElementById('import-pdf-preview');
+  if(!file) return;
+  if(file.type!=='application/pdf'){ status.textContent='❌ Selecione um arquivo PDF.'; status.style.color='var(--danger)'; return; }
+  status.textContent = '⏳ Lendo PDF...'; status.style.color='var(--muted)';
+  prev.innerHTML = '';
+  try{
+    _importPdf = { nome: file.name, base64: await fileParaBase64(file) };
+    const texto = await extrairTextoPDF(file);
+    _importData = detectarDataProposta(texto);
+    _importBlocos = parseOrcamentoPDF(texto);
+    if(!_importBlocos.length){
+      const itensSoltos = parseItensPDF(texto);
+      _importBlocos = [{ tag:'', os:'', itens:itensSoltos, valorTotal: itensSoltos.reduce((s,i)=>s+i.valor,0) }];
+    }
+    status.textContent = `✅ "${file.name}" lido · ${_importBlocos.length} balança${_importBlocos.length===1?'':'s'} detectada${_importBlocos.length===1?'':'s'} — confira e ajuste abaixo antes de enviar.`;
+    status.style.color = 'var(--ok)';
+    renderImportPreview();
+  } catch(err){
+    console.error(err);
+    status.textContent = '❌ Não consegui ler o texto do PDF (pode ser escaneado/imagem). Cadastre manualmente pelo portal da terceirizada.';
+    status.style.color = 'var(--danger)';
+  }
+}
+
+function renderImportPreview(){
+  const prev = document.getElementById('import-pdf-preview');
+  if(!_importBlocos.length){ prev.innerHTML=''; return; }
+  prev.innerHTML = `
+    <div style="margin-bottom:12px">
+      <label>Data do orçamento (aplicada a todas as balanças abaixo)</label>
+      <input type="date" id="import-data" value="${_importData}" style="max-width:200px" onchange="_importData=this.value">
+    </div>
+  ` + _importBlocos.map((b,bi)=>`
+    <div class="hist-item">
+      <div class="tag-val">
+        <input type="text" value="${b.tag}" placeholder="TAG (ex: AS-BL-043)" oninput="_importBlocos[${bi}].tag=this.value.toUpperCase().trim()"
+          style="width:180px;font-weight:800;text-transform:uppercase;padding:6px 9px;border:1.5px solid var(--bdr);border-radius:6px">
+        <button type="button" onclick="removerBlocoImport(${bi})" style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer">🗑 remover</button>
+      </div>
+      <div style="font-size:.74rem;color:var(--muted);margin:5px 0">${b.os?'O.S.: <strong>'+b.os+'</strong> · ':''}Total: <strong style="color:var(--ok)">${fmtOrc(b.valorTotal||b.itens.reduce((s,i)=>s+i.valor,0))}</strong></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
+        ${b.itens.map((it,ii)=>`<span style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:3px 10px;font-size:.75rem;color:#0369a1">🔩 ${it.desc} · ${fmtOrc(it.valor)}
+          <button type="button" onclick="removerItemImport(${bi},${ii})" style="background:none;border:none;color:#dc2626;font-weight:900;cursor:pointer;padding:0 0 0 4px">×</button></span>`).join('') || '<span style="font-size:.76rem;color:var(--muted);font-style:italic">Sem peças detectadas — adicione manualmente depois de aprovar.</span>'}
+      </div>
+    </div>`).join('') + `
+    <button type="button" class="btn btn-p" style="margin-top:12px" onclick="confirmarImportacaoPdf()">✅ Confirmar e enviar ${_importBlocos.length} orçamento${_importBlocos.length===1?'':'s'}</button>
+  `;
+}
+function removerBlocoImport(bi){ _importBlocos.splice(bi,1); renderImportPreview(); }
+function removerItemImport(bi,ii){ _importBlocos[bi].itens.splice(ii,1); renderImportPreview(); }
+
+async function confirmarImportacaoPdf(){
+  if(!_importBlocos.length){ alert('Nenhuma balança para enviar.'); return; }
+  if(_importBlocos.some(b=>!b.tag.trim())){ alert('Preencha a TAG de todas as balanças antes de confirmar.'); return; }
+  const status = document.getElementById('import-pdf-status');
+  status.textContent = '⏳ Enviando...'; status.style.color='var(--muted)';
+  try{
+    let primeiroId = null;
+    for(const b of _importBlocos){
+      const orc = {
+        tag: b.tag.trim().toUpperCase(),
+        numeroOS: b.os||'',
+        dataOrcamento: _importData,
+        dataPrevistaEntrega: '',
+        valorTotal: b.valorTotal || b.itens.reduce((s,i)=>s+i.valor,0),
+        itens: JSON.stringify(b.itens),
+        status: 'AGUARDANDO',
+        timestamp: Date.now(),
+        temPdf: true,
+        pdfNome: _importPdf.nome
+      };
+      const r = await fetch(`${DB}/orcamentos.json`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(orc)});
+      const {name:novoId} = await r.json();
+      if(!primeiroId) primeiroId = novoId;
+      await fetch(`${DB}/orcamentos/${novoId}.json`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pdfRef: primeiroId})});
+    }
+    await fetch(`${DB}/orcamentosPdf/${primeiroId}.json`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(_importPdf)});
+
+    status.textContent = `✅ ${_importBlocos.length} orçamento(s) enviado(s) para aprovação!`; status.style.color='var(--ok)';
+    _importBlocos = []; _importPdf = null;
+    document.getElementById('import-pdf-preview').innerHTML = '';
+    document.getElementById('import-pdf-file').value = '';
+    carregarAprovacoes();
+  } catch(err){
+    console.error(err);
+    status.textContent = '❌ Erro ao enviar. Tente novamente.'; status.style.color='var(--danger)';
+  }
 }
 
 async function aprovar(id){
@@ -3340,6 +3497,9 @@ async function excluirOrcamento(id){
   if(!(await confirmModal(msg))) return;
   try {
     await fetch(`${DB}/orcamentos/${id}.json`,{method:'DELETE'});
+    const refId = (o && o.pdfRef) || id;
+    const aindaReferenciado = _orcsAprov.some(x=>x.id!==id && ((x.pdfRef||x.id)===refId));
+    if(!aindaReferenciado) await fetch(`${DB}/orcamentosPdf/${refId}.json`,{method:'DELETE'}).catch(()=>{});
     carregarAprovacoes();
   } catch(e){ alert('Erro ao excluir. Tente novamente.'); }
 }
