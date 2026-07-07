@@ -3257,7 +3257,21 @@ async function extrairTextoPDF(file){
   for(let p=1;p<=pdf.numPages;p++){
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    texto += content.items.map(it=>it.str).join(' ') + '\n';
+    const linhas = [];
+    let linhaAtual = null, yAtual = null;
+    content.items.forEach(item=>{
+      if(item.str==='') return;
+      const y = item.transform[5];
+      if(yAtual!==null && Math.abs(y-yAtual)<=2){
+        linhaAtual.push(item.str);
+      } else {
+        if(linhaAtual) linhas.push(linhaAtual.join(' '));
+        linhaAtual = [item.str];
+      }
+      yAtual = y;
+    });
+    if(linhaAtual) linhas.push(linhaAtual.join(' '));
+    texto += linhas.join('\n') + '\n';
   }
   return texto;
 }
