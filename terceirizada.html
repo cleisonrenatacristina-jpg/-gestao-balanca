@@ -464,6 +464,54 @@ function parseItensPDF(texto){
   });
   return detectados;
 }
+function normalizarTagPDF(raw){
+  const t = raw.toUpperCase().replace(/\s+/g,'');
+  const m = t.match(/^AS-?(BA-?)?BL-?(\d+)$/);
+  if(!m) return t;
+  const numero = m[2].padStart(3,'0');
+  return m[1] ? `AS-BA-BL-${numero}` : `AS-BL-${numero}`;
+}
+function parseOrcamentoPDF(texto){
+  const linhas = texto.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const reTag      = /Patrim\.?:?\s*(AS\s*-?\s*(?:BA\s*-?\s*)?BL\s*-?\s*\d+)/i;
+  const reOS       = /OS:?\s*(\d+)/i;
+  const reValor    = /R?\$?\s*([\d]{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\s*$/;
+  const reIgnorar  = /subtotal|desconto|frete|cnpj|cpf|telefone|endere[çc]o|forma de pagamento|prazo|validade|proposta|página|razão social|contato:/i;
+  const blocos = [];
+  let atual = null;
+  linhas.forEach(l=>{
+    const mTag = l.match(reTag);
+    if(mTag){
+      if(atual) blocos.push(atual);
+      const mOS = l.match(reOS);
+      atual = { tag: normalizarTagPDF(mTag[1]), os: mOS?mOS[1]:'', itens: [], valorTotal: 0 };
+      return;
+    }
+    if(!atual) return;
+    if(/valor\s*total/i.test(l)){
+      if(!/do\s*or[çc]amento/i.test(l)){
+        const mv = l.match(reValor);
+        if(mv) atual.valorTotal = parseFloat(mv[1].replace(/\./g,'').replace(',','.'));
+      }
+      return;
+    }
+    if(reIgnorar.test(l)) return;
+    const mv = l.match(reValor);
+    if(!mv) return;
+    const valor = parseFloat(mv[1].replace(/\./g,'').replace(',','.'));
+    if(!valor || valor<=0) return;
+    const desc = l.slice(0, mv.index).replace(/[-–—.:\s]+$/,'').trim();
+    if(desc.length<2 || desc.length>80) return;
+    atual.itens.push({desc, valor});
+  });
+  if(atual) blocos.push(atual);
+  return blocos;
+}
+function detectarDataPropostaPDF(texto){
+  const m = texto.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if(!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
 document.getElementById('o-pdf').addEventListener('change', async e=>{
   const file = e.target.files[0];
   const status = document.getElementById('pdf-status');
@@ -472,19 +520,37 @@ document.getElementById('o-pdf').addEventListener('change', async e=>{
     status.textContent = '❌ Selecione um arquivo PDF.'; status.style.color = 'var(--danger)';
     e.target.value = ''; return;
   }
-  status.textContent = '⏳ Lendo PDF e detectando peças...'; status.style.color = 'var(--muted)';
+  status.textContent = '⏳ Lendo PDF e preenchendo automaticamente...'; status.style.color = 'var(--muted)';
   try{
     _pdfAnexado = {nome: file.name, base64: await fileParaBase64(file)};
     const texto = await extrairTextoPDF(file);
-    const detectados = parseItensPDF(texto);
-    if(detectados.length){
-      detectados.forEach(i=>itens.push(i));
+    const blocos = parseOrcamentoPDF(texto);
+    const dataProposta = detectarDataPropostaPDF(texto);
+    if(dataProposta) document.getElementById('o-data').value = dataProposta;
+
+    if(blocos.length){
+      const b = blocos[0];
+      if(b.tag) document.getElementById('o-tag').value = b.tag;
+      if(b.os) document.getElementById('o-os').value = b.os;
+      itens = [];
+      b.itens.forEach(i=>itens.push(i));
       renderChips();
-      status.textContent = `✅ "${file.name}" anexado · ${detectados.length} item(ns) detectado(s) automaticamente — confira/ajuste na lista abaixo antes de enviar.`;
+      const extra = blocos.length>1
+        ? ` · este PDF tem ${blocos.length} balanças — preenchi com a primeira (${b.tag}); pra cadastrar todas de uma vez, use o importador na aba Aprovações do painel principal.`
+        : '';
+      status.textContent = `✅ "${file.name}" anexado · TAG, O.S. e ${b.itens.length} peça(s) preenchidos automaticamente — confira antes de enviar${extra}`;
       status.style.color = 'var(--ok)';
     } else {
-      status.textContent = `✅ "${file.name}" anexado · não detectamos peças automaticamente neste layout — adicione manualmente abaixo.`;
-      status.style.color = 'var(--warn)';
+      const detectados = parseItensPDF(texto);
+      if(detectados.length){
+        detectados.forEach(i=>itens.push(i));
+        renderChips();
+        status.textContent = `✅ "${file.name}" anexado · ${detectados.length} item(ns) detectado(s) automaticamente — confira/ajuste na lista abaixo antes de enviar. Não achei a TAG neste layout, preencha manualmente.`;
+        status.style.color = 'var(--warn)';
+      } else {
+        status.textContent = `✅ "${file.name}" anexado · não detectamos peças automaticamente neste layout — adicione manualmente abaixo.`;
+        status.style.color = 'var(--warn)';
+      }
     }
   } catch(err){
     console.error(err);
