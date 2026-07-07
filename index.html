@@ -3265,12 +3265,12 @@ async function extrairTextoPDF(file){
       if(yAtual!==null && Math.abs(y-yAtual)<=2){
         linhaAtual.push(item.str);
       } else {
-        if(linhaAtual) linhas.push(linhaAtual.join(' '));
+        if(linhaAtual) linhas.push(linhaAtual.join(''));
         linhaAtual = [item.str];
       }
       yAtual = y;
     });
-    if(linhaAtual) linhas.push(linhaAtual.join(' '));
+    if(linhaAtual) linhas.push(linhaAtual.join(''));
     texto += linhas.join('\n') + '\n';
   }
   return texto;
