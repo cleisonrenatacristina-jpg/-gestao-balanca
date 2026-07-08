@@ -3165,12 +3165,33 @@ setInterval(sincronizarFirebase, 30000);
    APROVAÇÕES DE ORÇAMENTOS — TERCEIRIZADA
    ══════════════════════════════════════════════════════════ */
 let _orcsAprov = [];
+// Cruza orçamentos APROVADOS (aba Aprovações) com as balanças ainda no
+// terceiro (ocorrência com saída registrada e sem retorno) e sincroniza
+// o status pra "Aprovado" (fica aguardando chegada, sem regredir nada).
+function reconciliarComOcorrencias(orcs){
+  let mudou = false;
+  orcs.filter(o=>o.status==='APROVADO').forEach(orc=>{
+    const bal = findBal(orc.tag);
+    if(!bal) return;
+    const oc = findOcAtiva(bal.id, o=>o.dataRetirada && !o.dataRetorno && o.status!=='DESCARTADO');
+    if(!oc || oc.status==='APROVADO') return;
+    oc.status = 'APROVADO';
+    oc.aprovadoPor = orc.aprovadoPor || 'Manutenção';
+    oc.dataAprovacao = orc.dataAprovacao || orc.dataOrcamento || new Date().toISOString().slice(0,10);
+    if(orc.valorTotal) oc.custo = orc.valorTotal;
+    if(orc.numeroOS && !oc.numeroOS) oc.numeroOS = orc.numeroOS;
+    mudou = true;
+  });
+  if(mudou){ salvar(); renderAll(); sincronizarFirebase(); }
+}
+
 async function carregarAprovacoes(){
   try {
     const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
     const orcs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
     orcs.sort((a,b)=>b.timestamp-a.timestamp);
     _orcsAprov = orcs;
+    reconciliarComOcorrencias(orcs);
 
     const ag    = orcs.filter(o=>o.status==='AGUARDANDO').length;
     const aprov = orcs.filter(o=>o.status==='APROVADO').length;
