@@ -72,10 +72,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 
   <!-- STATS -->
   <div class="stats">
-    <div class="stat red"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
+    <div class="stat red" id="card-st-fora" style="cursor:pointer" onclick="toggleTagsFora()"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
     <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
     <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
     <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
+  </div>
+
+  <!-- TAGS DAS BALANÇAS QUE ESTÃO FORA (toggle ao clicar no card "Na terceirizada") -->
+  <div class="card" id="card-tags-fora" style="display:none;border-color:#fca5a5">
+    <h2 style="color:var(--danger)">⏳ Balanças fora (na terceirizada)</h2>
+    <div id="chips-tags-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
   </div>
 
   <!-- CONFIRMAR CHEGADA (balanças que estavam na terceirizada) -->
@@ -264,6 +270,13 @@ async function carregarDados(){
 
     // Seção de confirmação de chegada
     const naTerc = ocs.filter(o=>o.status==='SAIU');
+
+    // Chips de TAGs fora (mostrados ao clicar no card "Na terceirizada")
+    const chipsForaEl = document.getElementById('chips-tags-fora');
+    chipsForaEl.innerHTML = naTerc.length
+      ? naTerc.map(o=>`<span class="badge b-warn" style="font-size:.78rem;padding:5px 12px">${o.tag}</span>`).join('')
+      : '<span style="font-size:.82rem;color:var(--muted)">Nenhuma balança na terceirizada no momento.</span>';
+
     const cardChegada = document.getElementById('card-chegada');
     const listaChegada = document.getElementById('lista-chegada');
     if(naTerc.length){
@@ -324,6 +337,11 @@ async function excluirOcAlm(fbId){
   } catch(e) {
     showMsg('❌ Erro ao excluir. Tente novamente.','err');
   }
+}
+
+function toggleTagsFora(){
+  const el = document.getElementById('card-tags-fora');
+  el.style.display = (el.style.display==='none') ? 'block' : 'none';
 }
 
 // Atualiza a cada 30 segundos
