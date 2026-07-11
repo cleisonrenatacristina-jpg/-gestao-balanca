@@ -9,24 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --p:#C0244E;--pd:#7A1730;--pl:#FBEAF0;
-  --ok:#0F9D63;--danger:#DC2626;--warn:#D97706;
-  --bg:#F7F1F3;--card:#fff;--bdr:#E8DEE3;--muted:#8A7890;--txt:#1B0E14;--header:#170A11;
+  --p:#FF5C86;--pd:#C0244E;--pl:#3A1424;
+  --ok:#34D399;--danger:#F87171;--warn:#FBBF24;
+  --bg:#0E0810;--card:#1C121B;--bdr:#34222D;--muted:#B49AA6;--txt:#F6ECF1;--header:#050206;
   --f-display:'Barlow Semi Condensed',system-ui,sans-serif;
   --f-body:'Inter',system-ui,sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
 }
-@media(prefers-color-scheme:dark){
-  :root{
-    --pl:#3A1224;--ok:#22c17f;--danger:#f0685f;--warn:#f0ab3a;
-    --bg:#160D12;--card:#211318;--bdr:#3B252E;--muted:#B49AA6;--txt:#F5EAEF;--header:#0D0709;
-  }
-}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--f-body);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:var(--f-body);background:
+    radial-gradient(1100px 480px at 85% -10%,rgba(255,92,134,.10),transparent 60%),
+    var(--bg);
+  color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
 header{
-  background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px),linear-gradient(135deg,var(--header),#2A1420);
-  color:#fff;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(192,36,78,.25);position:sticky;top:0;z-index:50}
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 14px),linear-gradient(135deg,var(--header),#2A1420);
+  color:#fff;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 24px rgba(255,92,134,.18),0 1px 0 rgba(255,255,255,.04) inset;position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,92,134,.2)}
 .header-brand{display:flex;align-items:center;gap:14px}
 .header-logo{height:34px;width:auto;border-radius:6px}
 .header-divider{width:1px;height:26px;background:rgba(255,255,255,.2)}
@@ -48,24 +45,25 @@ label{font-family:var(--f-display);font-size:.75rem;font-weight:700;color:var(--
 input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.95rem;background:var(--bg);color:var(--txt);transition:border-color .15s ease,box-shadow .15s ease;font-family:var(--f-body)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:var(--card);box-shadow:0 0 0 3px rgba(192,36,78,.12)}
 #a-tag{font-family:var(--f-mono);letter-spacing:.04em}
+::placeholder{color:var(--muted);opacity:.7}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:420px){.r2{grid-template-columns:1fr}}
 .btn{width:100%;padding:14px;border-radius:9px;border:none;font-size:.95rem;font-weight:700;cursor:pointer;background:var(--p);color:#fff;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;box-shadow:0 3px 10px rgba(192,36,78,.35)}
 .btn:hover{background:var(--pd);transform:translateY(-1px);box-shadow:0 5px 16px rgba(192,36,78,.4)}
-.btn:disabled{background:#c8b4bc;cursor:not-allowed;transform:none;box-shadow:none}
+.btn:disabled{background:var(--bdr);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
 .stat{background:var(--card);border-radius:14px;border:1px solid var(--bdr);padding:16px 14px;text-align:center;box-shadow:0 1px 4px rgba(27,14,20,.05);position:relative}
 .stat .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:2.1rem;font-weight:600;color:var(--p);line-height:1.1}
 .stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:var(--warn)}
 .stat .l{font-family:var(--f-display);font-size:.72rem;color:var(--muted);margin-top:5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .stat-click{cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
-.stat-click:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(220,38,38,.16)}
+.stat-click:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(248,113,113,.18)}
 .stat-click .chevron{position:absolute;top:10px;right:11px;font-size:.65rem;color:var(--danger);opacity:.55;transition:transform .2s ease}
 .stat-click.open .chevron{transform:rotate(180deg)}
 @media(prefers-reduced-motion:reduce){.stat-click,.stat-click .chevron{transition:none}}
 .alert{padding:12px 14px;border-radius:8px;font-size:.88rem;margin-bottom:12px;display:flex;align-items:center;gap:9px}
-.al-ok{background:rgba(15,157,99,.12);border-left:4px solid var(--ok);color:var(--ok)}
-.al-err{background:rgba(220,38,38,.1);border-left:4px solid var(--danger);color:var(--danger)}
+.al-ok{background:rgba(52,211,153,.13);border-left:4px solid var(--ok);color:var(--ok)}
+.al-err{background:rgba(248,113,113,.12);border-left:4px solid var(--danger);color:var(--danger)}
 .sync{font-size:.72rem;color:var(--muted);text-align:center;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px}
 .sync span{width:7px;height:7px;border-radius:50%;background:var(--p);display:inline-block;animation:pulse 2s infinite}
 @media(prefers-reduced-motion:reduce){.sync span{animation:none}}
@@ -73,11 +71,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .hist{max-height:320px;overflow-y:auto}
 .hist-item{padding:11px 0;border-bottom:1px solid var(--bdr);font-size:.83rem}
 .hist-item:last-child{border-bottom:none}
-.tagmono{font-family:var(--f-mono);font-weight:600;color:var(--pd);letter-spacing:.02em}
+.tagmono{font-family:var(--f-mono);font-weight:600;color:var(--p);letter-spacing:.02em}
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
-.b-ok{background:rgba(15,157,99,.14);color:var(--ok)}.b-bad{background:rgba(220,38,38,.12);color:var(--danger)}
-.b-warn{background:rgba(217,119,6,.14);color:var(--warn)}.b-pend{background:var(--bg);color:var(--muted)}
-.tag-chip{display:inline-block;font-family:var(--f-mono);font-size:.76rem;font-weight:600;letter-spacing:.02em;padding:5px 11px;border-radius:6px;background:var(--pl);color:var(--pd);border:1px solid rgba(192,36,78,.22)}
+.b-ok{background:rgba(52,211,153,.16);color:var(--ok)}.b-bad{background:rgba(248,113,113,.14);color:var(--danger)}
+.b-warn{background:rgba(251,191,36,.16);color:var(--warn)}.b-pend{background:var(--bdr);color:var(--muted)}
+.tag-chip{display:inline-block;font-family:var(--f-mono);font-size:.76rem;font-weight:600;letter-spacing:.02em;padding:5px 11px;border-radius:6px;background:var(--pl);color:var(--p);border:1px solid rgba(255,92,134,.28)}
 .chegada-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
 .chegada-item:last-child{border-bottom:none}
 .chegada-item .tagmono{font-size:.92rem;min-width:90px}
@@ -154,13 +152,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
       </div>
 
       <!-- TAGS DAS BALANÇAS QUE ESTÃO FORA (toggle ao clicar no card "Na terceirizada") -->
-      <div class="card" id="card-tags-fora" style="display:none;border-color:#fca5a5">
+      <div class="card" id="card-tags-fora" style="display:none;border-color:rgba(248,113,113,.4)">
         <h2 style="color:var(--danger)">⏳ Balanças fora (na terceirizada)</h2>
         <div id="chips-tags-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
       <!-- CONFIRMAR CHEGADA (balanças que estavam na terceirizada) -->
-      <div class="card" id="card-chegada" style="display:none;border-color:#86efac">
+      <div class="card" id="card-chegada" style="display:none;border-color:rgba(52,211,153,.4)">
         <h2 style="color:var(--ok)">📥 Confirmar chegada de balanças</h2>
         <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Balanças que estão na terceirizada e precisam ter a chegada confirmada:</p>
         <div id="lista-chegada"></div>
@@ -214,13 +212,13 @@ function validarTagAlm(el){
   const todos = getTodosOsTags();
   const existe = todos.includes(val);
   if(existe){
-    aviso.style.cssText='display:block;background:#d1fae5;color:#065f46;border:1px solid #86efac;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
+    aviso.style.cssText='display:block;background:rgba(52,211,153,.14);color:#34D399;border:1px solid rgba(52,211,153,.4);padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
     aviso.innerHTML=`✅ Balança <strong>${val}</strong> encontrada — pode registrar`;
-    el.style.borderColor='#059669'; el.style.background='#f0fdf4';
+    el.style.borderColor='#34D399'; el.style.background='rgba(52,211,153,.08)';
   } else {
-    aviso.style.cssText='display:block;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
+    aviso.style.cssText='display:block;background:rgba(248,113,113,.14);color:#F87171;border:1px solid rgba(248,113,113,.4);padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700';
     aviso.innerHTML=`⚠️ TAG <strong>${val}</strong> não encontrada no cadastro — verifique o número`;
-    el.style.borderColor='#dc2626'; el.style.background='#fff5f5';
+    el.style.borderColor='#F87171'; el.style.background='rgba(248,113,113,.08)';
   }
 }
 
@@ -341,12 +339,12 @@ async function carregarDados(){
           <div style="flex:1">
             <strong class="tagmono">${o.tag}</strong> ${statusBadge(o.status)}
             <br><span style="color:var(--muted);font-size:.78rem">${fd(o.dataQuebra)} ${o.turno?'· '+o.turno:''} ${o.setor?'· <strong>'+o.setor+'</strong>':''}</span>
-            ${o.problema?`<br><span style="color:#4b5563;font-size:.8rem;font-style:italic">"${o.problema}"</span>`:''}
+            ${o.problema?`<br><span style="color:var(--muted);font-size:.8rem;font-style:italic">"${o.problema}"</span>`:''}
             ${o.custo?`<br><strong style="color:var(--ok);font-size:.8rem">${fmt(o.custo)}</strong>`:''}
           </div>
           ${o.status==='AGUARDANDO'?`
             <button onclick="excluirOcAlm('${o.id}')"
-              style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0"
+              style="background:rgba(248,113,113,.12);color:#F87171;border:1px solid rgba(248,113,113,.35);border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0"
               title="Excluir este registro">
               🗑 Excluir
             </button>
