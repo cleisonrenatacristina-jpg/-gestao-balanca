@@ -5,60 +5,84 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LivUp — Almoxarifado Balanças</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--p:#C0244E;--pd:#8B1A39;--pl:#F9E8EF;--ok:#059669;--danger:#dc2626;--warn:#d97706;--bg:#F2F0F4;--card:#fff;--bdr:#EAE6EC;--muted:#8A7890;--txt:#1A0A12;--header:#1A0A12}
+:root{
+  --p:#C0244E;--pd:#7A1730;--pl:#FBEAF0;
+  --ok:#0F9D63;--danger:#DC2626;--warn:#D97706;
+  --bg:#F7F1F3;--card:#fff;--bdr:#E8DEE3;--muted:#8A7890;--txt:#1B0E14;--header:#170A11;
+  --f-display:'Barlow Semi Condensed',system-ui,sans-serif;
+  --f-body:'Inter',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --pl:#3A1224;--ok:#22c17f;--danger:#f0685f;--warn:#f0ab3a;
+    --bg:#160D12;--card:#211318;--bdr:#3B252E;--muted:#B49AA6;--txt:#F5EAEF;--header:#0D0709;
+  }
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
-header{background:var(--header);color:#fff;padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(192,36,78,.25);position:sticky;top:0;z-index:50}
+body{font-family:var(--f-body);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+header{
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px),linear-gradient(135deg,var(--header),#2A1420);
+  color:#fff;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(192,36,78,.25);position:sticky;top:0;z-index:50}
 .header-brand{display:flex;align-items:center;gap:14px}
 .header-logo{height:34px;width:auto;border-radius:6px}
-.header-divider{width:1px;height:24px;background:rgba(255,255,255,.2)}
-.header-title{font-size:.92rem;font-weight:700;color:#fff;letter-spacing:.02em}
-.header-sub{font-size:.7rem;color:rgba(255,255,255,.55);margin-top:1px}
-.badge-alm{background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.5);border-radius:20px;padding:4px 12px;font-size:.72rem;font-weight:700;color:#fff;letter-spacing:.04em}
+.header-divider{width:1px;height:26px;background:rgba(255,255,255,.2)}
+.header-title{font-family:var(--f-display);font-size:1.05rem;font-weight:800;color:#fff;letter-spacing:.01em}
+.header-sub{font-size:.7rem;color:rgba(255,255,255,.55);margin-top:1px;letter-spacing:.02em}
+.badge-alm{font-family:var(--f-display);background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.5);border-radius:20px;padding:5px 14px;font-size:.76rem;font-weight:700;color:#fff;letter-spacing:.07em}
 .wrap{max-width:560px;margin:0 auto;padding:20px 16px}
 @media(min-width:900px){
-  .wrap{max-width:1040px}
-  .layout{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
-  .blk-form{grid-column:1;grid-row:1/3;position:sticky;top:76px}
+  .wrap{max-width:1080px}
+  .layout{display:grid;grid-template-columns:390px 1fr;gap:20px;align-items:start}
+  .blk-form{grid-column:1;grid-row:1/3;position:sticky;top:84px}
   .blk-stats{grid-column:2;grid-row:1}
   .blk-hist{grid-column:2;grid-row:2}
 }
-.card{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(26,10,18,.06)}
-.card h2{font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
-form{display:flex;flex-direction:column;gap:12px}
-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.95rem;background:#FAF8FB;transition:all .2s;font-family:'Inter',sans-serif}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:#fff;box-shadow:0 0 0 3px rgba(192,36,78,.08)}
+.card{background:var(--card);border-radius:14px;border:1px solid var(--bdr);padding:22px;margin-bottom:16px;box-shadow:0 2px 10px rgba(27,14,20,.06)}
+.card h2{font-family:var(--f-display);font-size:.86rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.09em;margin-bottom:16px;text-wrap:balance}
+form{display:flex;flex-direction:column;gap:14px}
+label{font-family:var(--f-display);font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.95rem;background:var(--bg);color:var(--txt);transition:border-color .15s ease,box-shadow .15s ease;font-family:var(--f-body)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);background:var(--card);box-shadow:0 0 0 3px rgba(192,36,78,.12)}
+#a-tag{font-family:var(--f-mono);letter-spacing:.04em}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:420px){.r2{grid-template-columns:1fr}}
-.btn{width:100%;padding:13px;border-radius:9px;border:none;font-size:.95rem;font-weight:800;cursor:pointer;background:var(--p);color:#fff;transition:all .2s;font-family:'Inter',sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 3px 10px rgba(192,36,78,.35)}
-.btn:hover{background:var(--pd);transform:translateY(-1px);box-shadow:0 5px 16px rgba(192,36,78,.45)}
+.btn{width:100%;padding:14px;border-radius:9px;border:none;font-size:.95rem;font-weight:700;cursor:pointer;background:var(--p);color:#fff;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;font-family:var(--f-display);letter-spacing:.06em;text-transform:uppercase;box-shadow:0 3px 10px rgba(192,36,78,.35)}
+.btn:hover{background:var(--pd);transform:translateY(-1px);box-shadow:0 5px 16px rgba(192,36,78,.4)}
 .btn:disabled{background:#c8b4bc;cursor:not-allowed;transform:none;box-shadow:none}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
-.stat{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:14px;text-align:center;box-shadow:0 1px 4px rgba(26,10,18,.05)}
-.stat .v{font-size:2rem;font-weight:900;color:var(--p);line-height:1.1}
-.stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:#d97706}
-.stat .l{font-size:.68rem;color:var(--muted);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.stat{background:var(--card);border-radius:14px;border:1px solid var(--bdr);padding:16px 14px;text-align:center;box-shadow:0 1px 4px rgba(27,14,20,.05);position:relative}
+.stat .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:2.1rem;font-weight:600;color:var(--p);line-height:1.1}
+.stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:var(--warn)}
+.stat .l{font-family:var(--f-display);font-size:.72rem;color:var(--muted);margin-top:5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.stat-click{cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.stat-click:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(220,38,38,.16)}
+.stat-click .chevron{position:absolute;top:10px;right:11px;font-size:.65rem;color:var(--danger);opacity:.55;transition:transform .2s ease}
+.stat-click.open .chevron{transform:rotate(180deg)}
+@media(prefers-reduced-motion:reduce){.stat-click,.stat-click .chevron{transition:none}}
 .alert{padding:12px 14px;border-radius:8px;font-size:.88rem;margin-bottom:12px;display:flex;align-items:center;gap:9px}
-.al-ok{background:#d1fae5;border-left:4px solid var(--ok);color:#065f46}
-.al-err{background:#fee2e2;border-left:4px solid var(--danger);color:#991b1b}
+.al-ok{background:rgba(15,157,99,.12);border-left:4px solid var(--ok);color:var(--ok)}
+.al-err{background:rgba(220,38,38,.1);border-left:4px solid var(--danger);color:var(--danger)}
 .sync{font-size:.72rem;color:var(--muted);text-align:center;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px}
 .sync span{width:7px;height:7px;border-radius:50%;background:var(--p);display:inline-block;animation:pulse 2s infinite}
+@media(prefers-reduced-motion:reduce){.sync span{animation:none}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .hist{max-height:320px;overflow-y:auto}
-.hist-item{padding:10px 0;border-bottom:1px solid var(--bdr);font-size:.83rem}
+.hist-item{padding:11px 0;border-bottom:1px solid var(--bdr);font-size:.83rem}
 .hist-item:last-child{border-bottom:none}
-.hist-item strong{color:var(--pd)}
+.tagmono{font-family:var(--f-mono);font-weight:600;color:var(--pd);letter-spacing:.02em}
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
-.b-ok{background:#d1fae5;color:#065f46}.b-bad{background:#fee2e2;color:#991b1b}
-.b-warn{background:#fef3c7;color:#92400e}.b-pend{background:#f3f4f6;color:#374151}
-.chegada-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.b-ok{background:rgba(15,157,99,.14);color:var(--ok)}.b-bad{background:rgba(220,38,38,.12);color:var(--danger)}
+.b-warn{background:rgba(217,119,6,.14);color:var(--warn)}.b-pend{background:var(--bg);color:var(--muted)}
+.tag-chip{display:inline-block;font-family:var(--f-mono);font-size:.76rem;font-weight:600;letter-spacing:.02em;padding:5px 11px;border-radius:6px;background:var(--pl);color:var(--pd);border:1px solid rgba(192,36,78,.22)}
+.chegada-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
 .chegada-item:last-child{border-bottom:none}
-.chegada-item strong{color:var(--pd);font-size:.92rem;min-width:90px}
-.btn-chegada{padding:7px 14px;border:none;border-radius:7px;background:var(--ok);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap}
-.btn-chegada:hover{background:#047857}
+.chegada-item .tagmono{font-size:.92rem;min-width:90px}
+.btn-chegada{padding:7px 14px;border:none;border-radius:7px;background:var(--ok);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--f-display);letter-spacing:.03em;white-space:nowrap}
+.btn-chegada:hover{filter:brightness(1.08)}
 </style>
 </head>
 <body>
@@ -123,7 +147,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
     <!-- STATS + TAGS FORA + CONFIRMAR CHEGADA (lado direito no desktop) -->
     <div class="blk-stats">
       <div class="stats">
-        <div class="stat red" id="card-st-fora" style="cursor:pointer" onclick="toggleTagsFora()"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
+        <div class="stat red stat-click" id="card-st-fora" onclick="toggleTagsFora()"><span class="chevron">▾</span><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
         <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
         <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
         <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
@@ -289,7 +313,7 @@ async function carregarDados(){
     // Chips de TAGs fora (mostrados ao clicar no card "Na terceirizada")
     const chipsForaEl = document.getElementById('chips-tags-fora');
     chipsForaEl.innerHTML = naTerc.length
-      ? naTerc.map(o=>`<span class="badge b-warn" style="font-size:.78rem;padding:5px 12px">${o.tag}</span>`).join('')
+      ? naTerc.map(o=>`<span class="tag-chip">${o.tag}</span>`).join('')
       : '<span style="font-size:.82rem;color:var(--muted)">Nenhuma balança na terceirizada no momento.</span>';
 
     const cardChegada = document.getElementById('card-chegada');
@@ -298,10 +322,10 @@ async function carregarDados(){
       cardChegada.style.display='block';
       listaChegada.innerHTML = naTerc.map(o=>`
         <div class="chegada-item">
-          <strong>${o.tag}</strong>
+          <strong class="tagmono">${o.tag}</strong>
           <span style="font-size:.78rem;color:var(--muted)">Saiu: ${fd(o.dataQuebra)}${o.setor?' · '+o.setor:''}</span>
           <input type="date" id="chegada-data-${o.id}" value="${new Date().toISOString().slice(0,10)}"
-            style="padding:6px 10px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.83rem;background:#FAF8FB;width:150px">
+            style="padding:6px 10px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.83rem;background:var(--bg);color:var(--txt);width:150px">
           <button class="btn-chegada" onclick="confirmarChegada('${o.id}','${o.tag}')">📥 Chegou</button>
         </div>`).join('');
     } else {
@@ -315,7 +339,7 @@ async function carregarDados(){
       <div class="hist-item" style="position:relative">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
           <div style="flex:1">
-            <strong>${o.tag}</strong> ${statusBadge(o.status)}
+            <strong class="tagmono">${o.tag}</strong> ${statusBadge(o.status)}
             <br><span style="color:var(--muted);font-size:.78rem">${fd(o.dataQuebra)} ${o.turno?'· '+o.turno:''} ${o.setor?'· <strong>'+o.setor+'</strong>':''}</span>
             ${o.problema?`<br><span style="color:#4b5563;font-size:.8rem;font-style:italic">"${o.problema}"</span>`:''}
             ${o.custo?`<br><strong style="color:var(--ok);font-size:.8rem">${fmt(o.custo)}</strong>`:''}
@@ -356,7 +380,9 @@ async function excluirOcAlm(fbId){
 
 function toggleTagsFora(){
   const el = document.getElementById('card-tags-fora');
-  el.style.display = (el.style.display==='none') ? 'block' : 'none';
+  const aberto = el.style.display!=='none' && el.style.display!=='';
+  el.style.display = aberto ? 'none' : 'block';
+  document.getElementById('card-st-fora').classList.toggle('open', !aberto);
 }
 
 // Atualiza a cada 30 segundos
