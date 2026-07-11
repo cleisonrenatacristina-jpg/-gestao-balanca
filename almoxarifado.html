@@ -18,6 +18,13 @@ header{background:var(--header);color:#fff;padding:0 20px;height:60px;display:fl
 .header-sub{font-size:.7rem;color:rgba(255,255,255,.55);margin-top:1px}
 .badge-alm{background:rgba(192,36,78,.35);border:1px solid rgba(192,36,78,.5);border-radius:20px;padding:4px 12px;font-size:.72rem;font-weight:700;color:#fff;letter-spacing:.04em}
 .wrap{max-width:560px;margin:0 auto;padding:20px 16px}
+@media(min-width:900px){
+  .wrap{max-width:1040px}
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+  .blk-form{grid-column:1;grid-row:1/3;position:sticky;top:76px}
+  .blk-stats{grid-column:2;grid-row:1}
+  .blk-hist{grid-column:2;grid-row:2}
+}
 .card{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(26,10,18,.06)}
 .card h2{font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
 form{display:flex;flex-direction:column;gap:12px}
@@ -70,72 +77,80 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 <div class="wrap">
   <div id="msg"></div>
 
-  <!-- STATS -->
-  <div class="stats">
-    <div class="stat red" id="card-st-fora" style="cursor:pointer" onclick="toggleTagsFora()"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
-    <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
-    <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
-    <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
-  </div>
-
-  <!-- TAGS DAS BALANÇAS QUE ESTÃO FORA (toggle ao clicar no card "Na terceirizada") -->
-  <div class="card" id="card-tags-fora" style="display:none;border-color:#fca5a5">
-    <h2 style="color:var(--danger)">⏳ Balanças fora (na terceirizada)</h2>
-    <div id="chips-tags-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-  </div>
-
-  <!-- CONFIRMAR CHEGADA (balanças que estavam na terceirizada) -->
-  <div class="card" id="card-chegada" style="display:none;border-color:#86efac">
-    <h2 style="color:var(--ok)">📥 Confirmar chegada de balanças</h2>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Balanças que estão na terceirizada e precisam ter a chegada confirmada:</p>
-    <div id="lista-chegada"></div>
-  </div>
-
-  <!-- FORMULÁRIO -->
-  <div class="card">
-    <h2>📦 Registrar entrada de balança quebrada</h2>
-    <form id="form-alm" onsubmit="registrar(event)">
-      <div>
-        <label>TAG da Balança *</label>
-        <input type="text" id="a-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
-          oninput="validarTagAlm(this)"
-          style="font-size:1.05rem;font-weight:700;letter-spacing:.04em">
-        <datalist id="tag-list"></datalist>
-        <div id="a-tag-aviso" style="display:none;margin-top:5px;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700"></div>
+  <div class="layout">
+    <!-- FORMULÁRIO (lado esquerdo no desktop) -->
+    <div class="blk-form">
+      <div class="card">
+        <h2>📦 Registrar entrada de balança quebrada</h2>
+        <form id="form-alm" onsubmit="registrar(event)">
+          <div>
+            <label>TAG da Balança *</label>
+            <input type="text" id="a-tag" list="tag-list" placeholder="Ex: AS-BL-185" required autocomplete="off"
+              oninput="validarTagAlm(this)"
+              style="font-size:1.05rem;font-weight:700;letter-spacing:.04em">
+            <datalist id="tag-list"></datalist>
+            <div id="a-tag-aviso" style="display:none;margin-top:5px;padding:6px 10px;border-radius:6px;font-size:.78rem;font-weight:700"></div>
+          </div>
+          <div class="r2">
+            <div>
+              <label>Data da Quebra *</label>
+              <input type="date" id="a-quebra" required>
+            </div>
+            <div>
+              <label>Turno</label>
+              <select id="a-turno">
+                <option value="">Selecione...</option>
+                <option>Manhã</option>
+                <option>Tarde</option>
+                <option>Noite</option>
+                <option>Madrugada</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label>Setor onde estava a balança</label>
+            <input type="text" id="a-setor" placeholder="Ex: Açougue, Recebimento, Frente de caixa...">
+          </div>
+          <div>
+            <label>Problema constatado</label>
+            <textarea id="a-prob" rows="3" placeholder="Descreva o problema identificado..."></textarea>
+          </div>
+          <button type="submit" class="btn" id="btn-env">Registrar entrada</button>
+        </form>
       </div>
-      <div class="r2">
-        <div>
-          <label>Data da Quebra *</label>
-          <input type="date" id="a-quebra" required>
-        </div>
-        <div>
-          <label>Turno</label>
-          <select id="a-turno">
-            <option value="">Selecione...</option>
-            <option>Manhã</option>
-            <option>Tarde</option>
-            <option>Noite</option>
-            <option>Madrugada</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <label>Setor onde estava a balança</label>
-        <input type="text" id="a-setor" placeholder="Ex: Açougue, Recebimento, Frente de caixa...">
-      </div>
-      <div>
-        <label>Problema constatado</label>
-        <textarea id="a-prob" rows="3" placeholder="Descreva o problema identificado..."></textarea>
-      </div>
-      <button type="submit" class="btn" id="btn-env">Registrar entrada</button>
-    </form>
-  </div>
+    </div>
 
-  <!-- HISTÓRICO -->
-  <div class="card">
-    <h2>📋 Últimas entradas registradas</h2>
-    <div class="sync"><span></span>Sincronizado em tempo real</div>
-    <div class="hist" id="hist"></div>
+    <!-- STATS + TAGS FORA + CONFIRMAR CHEGADA (lado direito no desktop) -->
+    <div class="blk-stats">
+      <div class="stats">
+        <div class="stat red" id="card-st-fora" style="cursor:pointer" onclick="toggleTagsFora()"><div class="v" id="st-fora">—</div><div class="l">⏳ Na terceirizada</div></div>
+        <div class="stat grn"><div class="v" id="st-volt">—</div><div class="l">📥 Voltaram</div></div>
+        <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando aprovação</div></div>
+        <div class="stat"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovadas</div></div>
+      </div>
+
+      <!-- TAGS DAS BALANÇAS QUE ESTÃO FORA (toggle ao clicar no card "Na terceirizada") -->
+      <div class="card" id="card-tags-fora" style="display:none;border-color:#fca5a5">
+        <h2 style="color:var(--danger)">⏳ Balanças fora (na terceirizada)</h2>
+        <div id="chips-tags-fora" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+
+      <!-- CONFIRMAR CHEGADA (balanças que estavam na terceirizada) -->
+      <div class="card" id="card-chegada" style="display:none;border-color:#86efac">
+        <h2 style="color:var(--ok)">📥 Confirmar chegada de balanças</h2>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Balanças que estão na terceirizada e precisam ter a chegada confirmada:</p>
+        <div id="lista-chegada"></div>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div class="blk-hist">
+      <div class="card">
+        <h2>📋 Últimas entradas registradas</h2>
+        <div class="sync"><span></span>Sincronizado em tempo real</div>
+        <div class="hist" id="hist"></div>
+      </div>
+    </div>
   </div>
 </div>
 
