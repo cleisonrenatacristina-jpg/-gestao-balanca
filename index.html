@@ -321,7 +321,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
   <div id="alertas-meta"></div>
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="dash-stats">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
-    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (total)</div></div>
+    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (aguardando retorno)</div></div>
     <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">⌛ Aguard. aprovação manutenção</div></div>
     <div class="stat" style="border-color:#bae6fd;background:#f0f9ff"><div class="v" style="color:#0369a1" id="s-aguard-orc">0</div><div class="l" style="color:#0369a1">🔧 Aguard. aprovação orçamento</div></div>
     <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
@@ -547,6 +547,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
               <option value="PENDENTE">Pendente</option>
               <option value="AGUARDANDO APROVAÇÃO">Aguardando</option>
               <option value="APROVADO">Aprovado</option>
+              <option value="ENTREGUE">Entregue</option>
               <option value="REPROVADO">Reprovado</option>
               <option value="DESCARTADO">Descartado</option>
             </select>
@@ -578,7 +579,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
   <!-- SUB: RESUMO -->
   <div id="stab-res" class="stab-page">
     <div class="g3" style="margin-bottom:16px">
-      <div class="stat grn"><div class="v" id="rs-aprov">0</div><div class="l">Aprovadas</div></div>
+      <div class="stat grn"><div class="v" id="rs-aprov">0</div><div class="l">Aprovadas (aguard. retorno)</div></div>
       <div class="stat ora"><div class="v" id="rs-aguard">0</div><div class="l">Aguardando aprovação</div></div>
       <div class="stat red"><div class="v" id="rs-reprov">0</div><div class="l">Reprovadas</div></div>
     </div>
@@ -596,6 +597,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
             <option value="PENDENTE">Pendente</option>
             <option value="AGUARDANDO APROVAÇÃO">Aguardando</option>
             <option value="APROVADO">Aprovado</option>
+            <option value="ENTREGUE">Entregue</option>
             <option value="REPROVADO">Reprovado</option>
             <option value="DESCARTADO">Descartado</option>
           </select>
@@ -1311,6 +1313,7 @@ function nomeMes(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleS
 
 function statusBadge(s){
   if(!s||s==='PENDENTE') return `<span class="badge b-pend">Pendente</span>`;
+  if(s==='ENTREGUE') return `<span class="badge b-ok">Entregue</span>`;
   if(s==='APROVADO') return `<span class="badge b-ok">Aprovado</span>`;
   if(s==='REPROVADO') return `<span class="badge b-bad">Reprovado</span>`;
   if(s==='DESCARTADO') return `<span class="badge b-desc">Descartado</span>`;
@@ -2579,17 +2582,54 @@ function step3Salvar(){
   sincronizarFirebase();
 }
 
-function step4Salvar(){
+async function step4Salvar(){
   const tag=document.getElementById('s4-tag').value;
   const bal=findBal(tag);
   if(!bal){stepMsg('s4-msg','TAG não encontrada.','err');return;}
-  const oc=findOcAtiva(bal.id, o=>o.dataRetirada&&!o.dataRetorno);
-  if(!oc){stepMsg('s4-msg','Nenhuma balança em conserto para esta TAG.','err');return;}
+  // Etapa 4 é livre — não depende da Etapa 2 (saída/"balança em conserto") ter sido
+  // preenchida antes. Se não achar nenhuma ocorrência ativa, cria uma na hora (mesmo
+  // padrão de fallback usado na Etapa 2 quando falta a Etapa 1).
+  let oc=findOcAtiva(bal.id, o=>!o.dataRetorno&&getStatus(o)!=='DESCARTADO');
+  let criouEntrada=false;
+  if(!oc){
+    oc={
+      id:uid(),balancaId:bal.id,
+      numeroOS:'',dataQuebra:document.getElementById('s4-retorno').value||new Date().toISOString().slice(0,10),
+      turno:'',setor:'',problemaConstatado:'',
+      dataRetirada:null,dataAprovacao:null,previsaoChegada:null,
+      status:'AGUARDANDO APROVAÇÃO',aprovadoPor:'',dataRetorno:null,custo:0,
+      descartado:false,quemDescartou:'',dataDescarte:null,capDiv:bal.capDiv||'',obs:'',
+      valorOrcamento:0,qtdOrcamento:0,quemAcompanhouTeste:'',quemValidou:''
+    };
+    ocorrencias.push(oc);
+    criouEntrada=true;
+  }
   oc.previsaoChegada=document.getElementById('s4-previsao').value||null;
   oc.dataRetorno=document.getElementById('s4-retorno').value||null;
   oc.quemAcompanhouTeste=document.getElementById('s4-acomp').value.trim();
   oc.quemValidou=document.getElementById('s4-validou').value.trim();
-  if(oc.dataRetorno&&oc.status!=='REPROVADO'&&oc.status!=='DESCARTADO') oc.status='APROVADO';
+
+  // Retorno de fábrica = já foi aprovado na terceirizada. Busca o orçamento aprovado
+  // mais recente dessa TAG e preenche Orçamento & Decisão automaticamente, em vez de
+  // pedir pra digitar de novo o que já foi decidido na aba Aprovações.
+  try {
+    const orcsData = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
+    const orcsTag = orcsData
+      ? Object.values(orcsData).filter(o=>o.tag===bal.tag && o.status==='APROVADO').sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
+      : [];
+    const orcAprovado = orcsTag[0];
+    if(orcAprovado){
+      if(!oc.valorOrcamento) oc.valorOrcamento=orcAprovado.valorTotal||0;
+      if(!oc.custo)          oc.custo=orcAprovado.valorTotal||0;
+      if(!oc.aprovadoPor)    oc.aprovadoPor=orcAprovado.aprovadoPor||'Manutenção';
+      if(!oc.dataAprovacao)  oc.dataAprovacao=orcAprovado.dataAprovacao||orcAprovado.dataOrcamento||null;
+      if(orcAprovado.numeroOS && !oc.numeroOS) oc.numeroOS=orcAprovado.numeroOS;
+    }
+  } catch(e){ /* segue sem auto-preencher se a busca falhar */ }
+
+  // Sai do status "Aprovado" (que representa "aguardando retorno") e vira "Entregue"
+  // assim que a data de retorno é preenchida — REPROVADO/DESCARTADO seguem intocados.
+  if(oc.dataRetorno&&oc.status!=='REPROVADO'&&oc.status!=='DESCARTADO') oc.status='ENTREGUE';
   if(oc.fbId){
     fetch(`${DB}/ocorrencias/${oc.fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'VOLTOU',dataRetorno:oc.dataRetorno})}).catch(()=>{});
   } else if(oc.dataRetorno){
@@ -2612,7 +2652,9 @@ function step4Salvar(){
   salvar();
   document.getElementById('s4-tag').value='';
   document.getElementById('s4-retorno').value='';
-  stepMsg('s4-msg',`✅ Retorno de ${bal.tag} registrado!`);
+  stepMsg('s4-msg', criouEntrada
+    ? `✅ Retorno de ${bal.tag} registrado! (não havia entrada em aberto — criei automaticamente)`
+    : `✅ Retorno de ${bal.tag} registrado!`);
   renderManPend();renderDashboard();
 }
 
