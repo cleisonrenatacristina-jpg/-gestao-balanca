@@ -2476,12 +2476,29 @@ function preencherEtapa(etapa, ocId){
   el.focus();
 }
 
-function step1Salvar(){
+async function step1Salvar(){
   const tag=document.getElementById('s1-tag').value;
   const bal=findBal(tag);
   if(!bal){stepMsg('s1-msg','TAG não encontrada. Verifique e tente novamente.','err');return;}
   const dataQ=document.getElementById('s1-data').value;
   if(!dataQ){stepMsg('s1-msg','Informe a data da quebra.','err');return;}
+
+  // Trava de duplicidade (mesma regra do almoxarifado.html): só pode registrar entrada
+  // de novo depois que essa balança passar pela terceirizada e voltar. Checa direto no
+  // Firebase pra pegar também o que foi registrado pelo almoxarifado, não só o local.
+  try {
+    const ocR = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
+    const ocsFB = ocR ? Object.values(ocR) : [];
+    const aberta = ocsFB.find(o => o.tag === bal.tag && o.status !== 'VOLTOU' && o.status !== 'DESCARTADO');
+    if(aberta){
+      stepMsg('s1-msg',`❌ A balança ${bal.tag} já tem uma ocorrência em aberto (quebra de ${fd(aberta.dataQuebra)}, status ${aberta.status}). Só pode registrar de novo depois que ela voltar da terceirizada.`,'err');
+      return;
+    }
+  } catch(e){
+    stepMsg('s1-msg','❌ Erro ao verificar duplicidade. Tente novamente.','err');
+    return;
+  }
+
   // Alerta de reincidência
   const reinc=detectReinc(bal.id,dataQ);
   if(reinc){
