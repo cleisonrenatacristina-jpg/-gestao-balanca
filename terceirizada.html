@@ -105,10 +105,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 
   <!-- STATS -->
   <div class="stats">
-    <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando</div></div>
-    <div class="stat grn"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovados</div></div>
-    <div class="stat red"><div class="v" id="st-reprov">—</div><div class="l">❌ Reprovados</div></div>
-    <div class="stat inf"><div class="v" id="st-total">—</div><div class="l">📋 Total enviado</div></div>
+    <div class="stat ora"><div class="v" id="st-ag">—</div><div class="l">⌛ Aguardando</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="st-ag-valor"></div></div>
+    <div class="stat grn"><div class="v" id="st-aprov">—</div><div class="l">✅ Aprovados</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="st-aprov-valor"></div></div>
+    <div class="stat red"><div class="v" id="st-reprov">—</div><div class="l">❌ Reprovados</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="st-reprov-valor"></div></div>
+    <div class="stat inf"><div class="v" id="st-total">—</div><div class="l">📋 Total enviado</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="st-total-valor"></div></div>
   </div>
   <div class="stats" style="grid-template-columns:1fr">
     <div class="stat inf">
@@ -650,13 +650,18 @@ async function carregarDados(){
     _orcamentos = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
     _orcamentos.sort((a,b)=>b.timestamp-a.timestamp);
 
-    const ag     = _orcamentos.filter(o=>o.status==='AGUARDANDO').length;
-    const aprov  = _orcamentos.filter(o=>o.status==='APROVADO').length;
-    const reprov = _orcamentos.filter(o=>o.status==='REPROVADO').length;
-    document.getElementById('st-ag').textContent    = ag;
-    document.getElementById('st-aprov').textContent = aprov;
-    document.getElementById('st-reprov').textContent= reprov;
+    const orcsAg     = _orcamentos.filter(o=>o.status==='AGUARDANDO');
+    const orcsAprov  = _orcamentos.filter(o=>o.status==='APROVADO');
+    const orcsReprov = _orcamentos.filter(o=>o.status==='REPROVADO');
+    const somaValor = lista => lista.reduce((s,o)=>s+(Number(o.valorTotal)||0),0);
+    document.getElementById('st-ag').textContent    = orcsAg.length;
+    document.getElementById('st-aprov').textContent = orcsAprov.length;
+    document.getElementById('st-reprov').textContent= orcsReprov.length;
     document.getElementById('st-total').textContent = _orcamentos.length;
+    document.getElementById('st-ag-valor').textContent     = fmt(somaValor(orcsAg));
+    document.getElementById('st-aprov-valor').textContent  = fmt(somaValor(orcsAprov));
+    document.getElementById('st-reprov-valor').textContent = fmt(somaValor(orcsReprov));
+    document.getElementById('st-total-valor').textContent  = fmt(somaValor(_orcamentos));
 
     renderTempoAprovacao();
     renderFiltros();

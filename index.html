@@ -291,9 +291,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
 
     <!-- Stats rápidos -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
-      <div class="stat ora"><div class="v" id="ap-st-ag">—</div><div class="l">⌛ Aguardando</div></div>
-      <div class="stat grn"><div class="v" id="ap-st-ok">—</div><div class="l">✅ Aprovados</div></div>
-      <div class="stat red"><div class="v" id="ap-st-bad">—</div><div class="l">❌ Reprovados</div></div>
+      <div class="stat ora"><div class="v" id="ap-st-ag">—</div><div class="l">⌛ Aguardando</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="ap-st-ag-valor"></div></div>
+      <div class="stat grn"><div class="v" id="ap-st-ok">—</div><div class="l">✅ Aprovados</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="ap-st-ok-valor"></div></div>
+      <div class="stat red"><div class="v" id="ap-st-bad">—</div><div class="l">❌ Reprovados</div><div class="l" style="font-size:.72rem;font-weight:700;margin-top:2px" id="ap-st-bad-valor"></div></div>
     </div>
 
     <!-- Importar orçamento em PDF -->
@@ -326,6 +326,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FAF8FB}
     <div class="stat" style="border-color:#bae6fd;background:#f0f9ff"><div class="v" style="color:#0369a1" id="s-aguard-orc">0</div><div class="l" style="color:#0369a1">🔧 Aguard. aprovação orçamento</div></div>
     <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
     <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-mauuso">
+    <div class="stat" style="border-color:#fca5a5;background:#fef2f2"><div class="v" style="color:#991b1b" id="s-mauuso-qtd">0</div><div class="l" style="color:#991b1b">🔻 Quebras por Mau Uso (queda) — total</div></div>
+    <div class="stat" style="border-color:#fca5a5;background:#fef2f2"><div class="v" style="color:#991b1b" id="s-mauuso-custo">R$ 0,00</div><div class="l" style="color:#991b1b">💸 Custo aprovado por Mau Uso</div></div>
   </div>
   <div id="s-mes-bar" style="background:#eff6ff;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:.8rem;color:var(--pd);display:flex;justify-content:space-between;align-items:center">
     <span>📅 Quebras este mês: <strong id="s-qmes-val">0</strong> &nbsp;·&nbsp; Custo este mês: <strong id="s-custo-mes-val">R$0</strong></span>
@@ -1482,6 +1486,11 @@ function renderDashboard(){
   document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
   document.getElementById('s-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
   document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+  // Mau uso (queda): quantidade total de quebras marcadas, e custo já aprovado dessas
+  const ocsMauUso=ocorrencias.filter(o=>o.mauUso);
+  document.getElementById('s-mauuso-qtd').textContent=ocsMauUso.length;
+  const custoMauUso=ocsMauUso.filter(o=>o.status==='APROVADO'||o.status==='ENTREGUE').reduce((s,o)=>s+(Number(o.custo)||0),0);
+  document.getElementById('s-mauuso-custo').textContent=fmt(custoMauUso);
   // Orçamentos aguardando aprovação (terceirizada)
   fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
     const n=d?Object.values(d).filter(o=>o.status==='AGUARDANDO').length:0;
@@ -2505,12 +2514,17 @@ async function step1Salvar(){
     document.getElementById('s1-reinc-txt').textContent=`Balança voltou do conserto em ${fd(reinc.oc.dataRetorno)} e quebrou em apenas ${reinc.dias} dia(s)!`;
     document.getElementById('s1-reinc').style.display='flex';
   } else { document.getElementById('s1-reinc').style.display='none'; }
+  const problemaTexto=document.getElementById('s1-prob').value.trim();
+  // Detecção automática de mau uso: problema mencionando queda é classificado como
+  // mau uso (quebra por uso indevido, não desgaste natural/defeito de fábrica).
+  const mauUso=/queda/i.test(problemaTexto);
   const oc={
     id:uid(),balancaId:bal.id,
     numeroOS:'',dataQuebra:dataQ,
     turno:document.getElementById('s1-turno').value,
     setor:document.getElementById('s1-setor').value,
-    problemaConstatado:document.getElementById('s1-prob').value.trim(),
+    problemaConstatado:problemaTexto,
+    mauUso,
     dataRetirada:null,dataAprovacao:null,previsaoChegada:null,
     status:'AGUARDANDO APROVAÇÃO',aprovadoPor:'',dataRetorno:null,custo:0,
     descartado:false,quemDescartou:'',dataDescarte:null,capDiv:bal.capDiv||'',obs:'',
@@ -2518,7 +2532,7 @@ async function step1Salvar(){
   };
   // Envia ao Firebase também
   fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    tag:bal.tag,dataQuebra:dataQ,turno:oc.turno,setor:oc.setor,problema:oc.problemaConstatado,status:'AGUARDANDO',timestamp:Date.now()
+    tag:bal.tag,dataQuebra:dataQ,turno:oc.turno,setor:oc.setor,problema:oc.problemaConstatado,mauUso,status:'AGUARDANDO',timestamp:Date.now()
   })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
   ocorrencias.push(oc);salvar();
   document.getElementById('s1-tag').value='';
@@ -3114,6 +3128,7 @@ async function sincronizarFirebase(){
         id:uid(), fbId:reg.fbId, balancaId:bal.id, numeroOS:'',
         dataQuebra:reg.dataQuebra||'', turno:reg.turno||'', setor:reg.setor||'',
         problemaConstatado:reg.problema||'',
+        mauUso: !!reg.mauUso || /queda/i.test(reg.problema||''),
         dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
         status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'', dataRetorno:null, custo:0,
         descartado:false, quemDescartou:'', dataDescarte:null,
@@ -3252,9 +3267,11 @@ async function carregarAprovacoes(){
     _orcsAprov = orcs;
     reconciliarComOcorrencias(orcs);
 
-    const ag    = orcs.filter(o=>o.status==='AGUARDANDO').length;
-    const aprov = orcs.filter(o=>o.status==='APROVADO').length;
-    const reprov= orcs.filter(o=>o.status==='REPROVADO').length;
+    const orcsAg    = orcs.filter(o=>o.status==='AGUARDANDO');
+    const orcsAprov = orcs.filter(o=>o.status==='APROVADO');
+    const orcsReprov= orcs.filter(o=>o.status==='REPROVADO');
+    const ag=orcsAg.length, aprov=orcsAprov.length, reprov=orcsReprov.length;
+    const somaValor = lista => lista.reduce((s,o)=>s+(Number(o.valorTotal)||0),0);
 
     const bEl = document.getElementById('badge-aprov');
     if(ag>0){ bEl.style.display='inline'; bEl.textContent=ag; }
@@ -3264,6 +3281,8 @@ async function carregarAprovacoes(){
     const stOk  = document.getElementById('ap-st-ok');
     const stBad = document.getElementById('ap-st-bad');
     if(stAg){ stAg.textContent=ag; stOk.textContent=aprov; stBad.textContent=reprov; }
+    const stAgV=document.getElementById('ap-st-ag-valor'), stOkV=document.getElementById('ap-st-ok-valor'), stBadV=document.getElementById('ap-st-bad-valor');
+    if(stAgV){ stAgV.textContent=fmt(somaValor(orcsAg)); stOkV.textContent=fmt(somaValor(orcsAprov)); stBadV.textContent=fmt(somaValor(orcsReprov)); }
 
     const pendEl = document.getElementById('ap-pendentes');
     const histEl = document.getElementById('ap-historico');
