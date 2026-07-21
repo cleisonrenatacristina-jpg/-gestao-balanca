@@ -176,6 +176,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 <script>
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
+// Detecção automática de mau uso: queda/impacto mencionado no problema, em qualquer
+// variação de "cair" (caiu, caindo, deixaram cair) ou "derrubar".
+const REGEX_MAU_USO = /queda|caiu|cair|caindo|derrub/i;
+
 // Hoje como padrão
 document.getElementById('a-quebra').value = new Date().toISOString().slice(0,10);
 
@@ -221,7 +225,7 @@ function validarTagAlm(el){
 
 function detectarMauUso(el){
   const aviso = document.getElementById('a-prob-mauuso');
-  aviso.style.display = /queda/i.test(el.value||'') ? 'block' : 'none';
+  aviso.style.display = REGEX_MAU_USO.test(el.value||'') ? 'block' : 'none';
 }
 
 function fd(s){ if(!s)return '—'; const[y,m,d]=s.split('-'); return`${d}/${m}/${y}`; }
@@ -275,7 +279,7 @@ async function registrar(e){
   const problemaTexto = document.getElementById('a-prob').value.trim();
   // Detecção automática de mau uso: problema mencionando queda é classificado como
   // mau uso (quebra por uso indevido, não desgaste natural/defeito de fábrica).
-  const mauUso = /queda/i.test(problemaTexto);
+  const mauUso = REGEX_MAU_USO.test(problemaTexto);
   const reg = {
     tag,
     dataQuebra: document.getElementById('a-quebra').value,

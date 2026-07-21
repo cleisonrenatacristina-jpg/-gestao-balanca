@@ -1173,6 +1173,11 @@ const DATA_VERSION = '8';
 if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 
+// Detecção automática de mau uso: queda/impacto mencionado no problema, em qualquer
+// variação de "cair" (caiu, caindo, deixaram cair) ou "derrubar". Mesma regra usada
+// no almoxarifado.html.
+const REGEX_MAU_USO = /queda|caiu|cair|caindo|derrub/i;
+
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function importarPlanilha(){
@@ -2517,7 +2522,7 @@ async function step1Salvar(){
   const problemaTexto=document.getElementById('s1-prob').value.trim();
   // Detecção automática de mau uso: problema mencionando queda é classificado como
   // mau uso (quebra por uso indevido, não desgaste natural/defeito de fábrica).
-  const mauUso=/queda/i.test(problemaTexto);
+  const mauUso=REGEX_MAU_USO.test(problemaTexto);
   const oc={
     id:uid(),balancaId:bal.id,
     numeroOS:'',dataQuebra:dataQ,
@@ -3128,7 +3133,7 @@ async function sincronizarFirebase(){
         id:uid(), fbId:reg.fbId, balancaId:bal.id, numeroOS:'',
         dataQuebra:reg.dataQuebra||'', turno:reg.turno||'', setor:reg.setor||'',
         problemaConstatado:reg.problema||'',
-        mauUso: !!reg.mauUso || /queda/i.test(reg.problema||''),
+        mauUso: !!reg.mauUso || REGEX_MAU_USO.test(reg.problema||''),
         dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
         status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'', dataRetorno:null, custo:0,
         descartado:false, quemDescartou:'', dataDescarte:null,
