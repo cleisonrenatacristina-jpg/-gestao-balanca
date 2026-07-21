@@ -77,8 +77,91 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--p);backg
 .btn-chegada{padding:6px 12px;border:none;border-radius:7px;background:var(--ok);color:#fff;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--f-display);letter-spacing:.03em;white-space:nowrap}
 .btn-chegada:hover{background:#047857}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCf-oTfikX-u_TZHgcarLwZzaz317b78PQ",
+  authDomain: "gestao-balancas-livup.firebaseapp.com",
+  databaseURL: "https://gestao-balancas-livup-default-rtdb.firebaseio.com",
+  projectId: "gestao-balancas-livup",
+  storageBucket: "gestao-balancas-livup.firebasestorage.app",
+  messagingSenderId: "958300481254",
+  appId: "1:958300481254:web:ea7faf3d8dfccc383bbd27",
+  measurementId: "G-2GTXLQM3YT"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+function fazerLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+  if(!email || !senha){ errEl.textContent = 'Preencha e-mail e senha.'; return; }
+  auth.signInWithEmailAndPassword(email, senha).catch(function(e){
+    errEl.textContent = 'E-mail ou senha inválidos.';
+  });
+}
+function fazerLogout(){
+  auth.signOut();
+}
+const EMAIL_PERMITIDO = "almoxarifado@gestaobalancas.com";
+const EMAIL_MASTER = "manutencao@gestaobalancas.com";
+auth.onAuthStateChanged(function(user){
+  const gate = document.getElementById('login-gate');
+  const logoutBtn = document.getElementById('btn-logout');
+  const errEl = document.getElementById('login-err');
+  if(user){
+    const emailLogado = (user.email || '').toLowerCase();
+    const permitido = emailLogado === EMAIL_PERMITIDO.toLowerCase() || emailLogado === EMAIL_MASTER.toLowerCase();
+    if(!permitido){
+      if(errEl) errEl.textContent = 'Este login não tem acesso a esta página.';
+      auth.signOut();
+      return;
+    }
+    if(gate) gate.classList.add('hidden');
+    if(logoutBtn) logoutBtn.style.display = 'block';
+    if(typeof sincronizarFirebase === 'function') sincronizarFirebase();
+    if(typeof sincAgora === 'function') sincAgora();
+  } else {
+    if(gate) gate.classList.remove('hidden');
+    if(logoutBtn) logoutBtn.style.display = 'none';
+  }
+});
+document.addEventListener('DOMContentLoaded', function(){
+  document.addEventListener('keydown', function(e){
+    const gate = document.getElementById('login-gate');
+    if(e.key === 'Enter' && gate && !gate.classList.contains('hidden')) fazerLogin();
+  });
+});
+</script>
+<style>
+#login-gate{position:fixed;inset:0;background:linear-gradient(135deg,#1A0A12,#3a1020);display:flex;align-items:center;justify-content:center;z-index:99999;font-family:'Inter',system-ui,sans-serif}
+#login-gate.hidden{display:none}
+#login-gate .login-box{background:#fff;border-radius:16px;padding:32px;width:340px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+#login-gate .login-box h2{color:#C0244E;font-size:1.3rem;margin-bottom:4px}
+#login-gate .login-box p{color:#8A7890;font-size:.8rem;margin-bottom:20px}
+#login-gate .login-box input{width:100%;padding:10px 12px;border:1.5px solid #EAE6EC;border-radius:8px;margin-bottom:12px;font-size:.9rem;box-sizing:border-box}
+#login-gate .login-box button{width:100%;padding:11px;border:none;border-radius:8px;background:#C0244E;color:#fff;font-weight:700;cursor:pointer;font-size:.9rem}
+#login-gate .login-box button:hover{background:#8B1A39}
+#login-err{color:#dc2626;font-size:.78rem;margin-top:8px;min-height:16px}
+#btn-logout{position:fixed;bottom:14px;right:14px;z-index:9998;background:#fff;border:1px solid #EAE6EC;border-radius:20px;padding:7px 14px;font-size:.72rem;font-weight:700;color:#8A7890;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+</style>
 </head>
 <body>
+<div id="login-gate">
+  <div class="login-box">
+    <h2>🔒 Gestão de Balanças</h2>
+    <p>Entre com seu e-mail e senha para continuar</p>
+    <input type="email" id="login-email" placeholder="E-mail" autocomplete="username">
+    <input type="password" id="login-senha" placeholder="Senha" autocomplete="current-password">
+    <button onclick="fazerLogin()">Entrar</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+<button id="btn-logout" style="display:none" onclick="fazerLogout()">🚪 Sair</button>
+
 <header>
   <div class="header-brand">
     <img src="livup-logo.png" alt="LivUp" class="header-logo">
