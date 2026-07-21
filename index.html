@@ -3300,7 +3300,11 @@ async function carregarAprovacoes(){
     if(!pend.length){
       pendEl.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted);font-size:.88rem">Nenhum orçamento aguardando aprovação.</div>';
     } else {
-      pendEl.innerHTML = `<div class="ap-sec ap-sec-pend">⌛ Aguardando sua aprovação (${pend.length})</div>` + pend.map(o=>renderAprovCard(o, true)).join('');
+      const semAnalise = pend.filter(o=>!o.iaRecomendacao).length;
+      pendEl.innerHTML = `<div class="ap-sec ap-sec-pend" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>⌛ Aguardando sua aprovação (${pend.length})</span>
+        ${semAnalise>0?`<button id="btn-ia-todos" onclick="analisarTodosPendentes()" style="background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🤖 Analisar todos os pendentes (${semAnalise})</button>`:''}
+      </div>` + pend.map(o=>renderAprovCard(o, true)).join('');
     }
 
     // Histórico
@@ -3315,6 +3319,115 @@ async function carregarAprovacoes(){
       histEl.innerHTML = html;
     }
   } catch(e){ console.warn('Erro ao carregar orçamentos:', e); }
+}
+
+// ── ANÁLISE IA: vale a pena aprovar este orçamento? ──────────────────────────
+function iaOrcHtml(o, comAcoes){
+  if(o.iaRecomendacao){
+    const cores = {
+      SIM:     ['#dcfce7','#166534','✅ Vale a pena aprovar'],
+      NAO:     ['#fde8e8','#991b1b','❌ Não vale a pena'],
+      AVALIAR: ['#fef3c7','#92400e','⚠️ Avaliar com cuidado']
+    };
+    const [bg,cor,label] = cores[o.iaRecomendacao] || cores.AVALIAR;
+    return `<div style="margin-top:8px;padding:8px 10px;border-radius:6px;background:${bg};color:${cor}">
+      <div style="font-weight:700;font-size:.8rem">🤖 ${label}</div>
+      ${o.iaJustificativa?`<div style="font-size:.78rem;margin-top:3px">${o.iaJustificativa}</div>`:''}
+      ${comAcoes?`<button onclick="analisarOrcamentoIA('${o.id}')" style="margin-top:6px;background:none;border:none;color:${cor};text-decoration:underline;font-size:.72rem;cursor:pointer;padding:0">🔄 Reanalisar</button>`:''}
+    </div>`;
+  }
+  if(comAcoes){
+    return `<div style="margin-top:8px">
+      <button id="btn-ia-orc-${o.id}" onclick="analisarOrcamentoIA('${o.id}')" style="background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">🤖 Vale a pena aprovar?</button>
+    </div>`;
+  }
+  return '';
+}
+
+async function analisarOrcamentoIA(orcId){
+  const o = _orcsAprov.find(x=>x.id===orcId);
+  if(!o) return;
+  const key = localStorage.getItem('claude_api_key')||'';
+  if(!key){ abrirConfigIA(); return; }
+  const btn = document.getElementById('btn-ia-orc-'+orcId);
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Analisando...'; }
+
+  const bal = findBal(o.tag);
+  const its = parseItensOrc(o.itens);
+  let contexto = `ORÇAMENTO EM ANÁLISE:
+- Balança: ${o.tag}
+- Valor do orçamento: ${fmtOrc(o.valorTotal)}
+- Itens: ${its.length?its.map(i=>i.desc+(i.valor?' ('+fmtOrc(i.valor)+')':'')).join(', '):'sem itens detalhados'}
+`;
+  if(bal){
+    const depr = analisarDepr(bal);
+    const st = statusCusto(bal);
+    const histOcs = ocorrencias.filter(x=>x.balancaId===bal.id);
+    const reincCount = histOcs.filter(isReinc).length;
+    const mauUsoCount = histOcs.filter(x=>x.mauUso).length;
+    contexto += `
+DADOS DA BALANÇA:
+- Modelo: ${bal.modelo||'—'} ${bal.marca||''} | Capacidade: ${bal.capDiv||'—'}
+- Valor de aquisição: ${fmt(bal.valor||0)} | Data aquisição: ${fd(bal.dataAquisicao)}
+- Depreciação: ${depr?(depr.depreciada?'TOTALMENTE DEPRECIADA':depr.pctDepr.toFixed(0)+'% depreciada, valor residual '+fmt(depr.valorResidual)):'não calculada (sem valor/data de aquisição cadastrados)'}
+- Custo de manutenção acumulado em ${new Date().getFullYear()}: ${fmt(st.custo)} (${(st.pct*100).toFixed(0)}% do valor de aquisição)
+- Total de ocorrências (quebras) já registradas: ${histOcs.length}
+- Reincidências (quebrou de novo em até 7 dias após retorno): ${reincCount}
+- Quebras classificadas como MAU USO (queda/impacto): ${mauUsoCount}
+`;
+  } else {
+    contexto += '\n(Balança não encontrada no cadastro — sem histórico disponível)\n';
+  }
+
+  const prompt = `Você é especialista em manutenção de equipamentos de pesagem industrial (LivUp), avaliando se vale a pena aprovar o pagamento de um orçamento de reparo enviado por uma terceirizada.
+
+${contexto}
+Responda EXATAMENTE neste formato (sem markdown, sem texto antes ou depois):
+RECOMENDACAO: SIM ou NAO ou AVALIAR
+JUSTIFICATIVA: <1 a 2 frases objetivas, considerando custo do orçamento vs valor residual da balança, reincidência e histórico de mau uso>`;
+
+  try{
+    const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:300, messages:[{role:'user',content:prompt}] })
+    });
+    if(!resp.ok){ const err=await resp.json(); throw new Error(err.error?.message||'Erro na API'); }
+    const data = await resp.json();
+    const texto = data.content[0].text.trim();
+    const mRec = texto.match(/RECOMENDACAO:\s*(SIM|NAO|AVALIAR)/i);
+    const mJus = texto.match(/JUSTIFICATIVA:\s*([\s\S]*)/i);
+    o.iaRecomendacao = mRec ? mRec[1].toUpperCase() : 'AVALIAR';
+    o.iaJustificativa = mJus ? mJus[1].trim() : texto;
+    o.iaAnalisadoEm = new Date().toISOString();
+    fetch(`${DB}/orcamentos/${orcId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({iaRecomendacao:o.iaRecomendacao, iaJustificativa:o.iaJustificativa, iaAnalisadoEm:o.iaAnalisadoEm})}).catch(()=>{});
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='🤖 Vale a pena aprovar?'; }
+    alert('Erro ao analisar com IA: '+e.message);
+    return;
+  }
+  const card = document.getElementById('aprov-'+orcId);
+  if(card) card.outerHTML = renderAprovCard(o, o.status==='AGUARDANDO');
+}
+
+async function analisarTodosPendentes(){
+  const pend = _orcsAprov.filter(o=>o.status==='AGUARDANDO' && !o.iaRecomendacao);
+  if(!pend.length){ alert('Nenhum orçamento pendente sem análise ainda.'); return; }
+  const key = localStorage.getItem('claude_api_key')||'';
+  if(!key){ abrirConfigIA(); return; }
+  const btn = document.getElementById('btn-ia-todos');
+  if(btn) btn.disabled=true;
+  for(const o of pend){
+    if(btn) btn.textContent = `⏳ Analisando ${o.tag}... (${pend.indexOf(o)+1}/${pend.length})`;
+    await analisarOrcamentoIA(o.id);
+  }
+  if(btn){ btn.disabled=false; btn.textContent='🤖 Analisar todos os pendentes'; }
 }
 
 function renderAprovCard(o, comAcoes){
@@ -3342,6 +3455,7 @@ function renderAprovCard(o, comAcoes){
       ${o.obsAprovacao?`<div style="font-size:.8rem;color:var(--muted);font-style:italic;padding:6px 10px;background:#FAF8FB;border-radius:6px;margin-top:6px">"${o.obsAprovacao}"</div>`:''}
       ${o.dataAprovacao?`<div style="font-size:.73rem;color:var(--muted);margin-top:6px">${o.status==='APROVADO'?'Aprovado':'Reprovado'} em ${fdOrc(o.dataAprovacao)}${o.aprovadoPor?' — '+o.aprovadoPor:''}${diasTextoOrc(o)}</div>`
         :`<div style="font-size:.73rem;color:#b45309;margin-top:6px">${diasTextoOrc(o)}</div>`}
+      ${iaOrcHtml(o, comAcoes)}
       <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         ${o.temPdf
           ? `<button type="button" onclick="verPdfOrc('${o.id}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:5px 12px;font-size:.75rem;font-weight:700;cursor:pointer">📎 Ver PDF${o.pdfNome?' — '+o.pdfNome:''}</button>`
