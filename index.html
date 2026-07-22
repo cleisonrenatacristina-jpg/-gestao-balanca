@@ -411,8 +411,8 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-mauuso">
-    <div class="stat" style="border-color:#fca5a5;background:#fef2f2"><div class="v" style="color:#991b1b" id="s-mauuso-qtd">0</div><div class="l" style="color:#991b1b">🔻 Quebras por Mau Uso (queda) — total</div></div>
-    <div class="stat" style="border-color:#fca5a5;background:#fef2f2"><div class="v" style="color:#991b1b" id="s-mauuso-custo">R$ 0,00</div><div class="l" style="color:#991b1b">💸 Custo aprovado por Mau Uso</div></div>
+    <div class="stat" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-qtd">0</div><div class="l" style="color:#991b1b">🔻 Quebras por Mau Uso (queda) — total</div></div>
+    <div class="stat" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-custo">R$ 0,00</div><div class="l" style="color:#991b1b">💸 Custo aprovado por Mau Uso</div></div>
   </div>
   <div id="s-mes-bar" style="background:#eff6ff;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:.8rem;color:var(--pd);display:flex;justify-content:space-between;align-items:center">
     <span>📅 Quebras este mês: <strong id="s-qmes-val">0</strong> &nbsp;·&nbsp; Custo este mês: <strong id="s-custo-mes-val">R$0</strong></span>
@@ -900,6 +900,20 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="modal-foot">
       <button class="btn btn-o" onclick="fecharM('m-bal')">Cancelar</button>
       <button class="btn btn-p" onclick="salvarEBal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE MAU USO -->
+<div class="modal-ov" id="m-mauuso">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">🔻 Quebras por Mau Uso (queda)</h3>
+      <button onclick="fecharM('m-mauuso')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="mauuso-corpo" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="fecharM('m-mauuso')">Fechar</button>
     </div>
   </div>
 </div>
@@ -2517,6 +2531,31 @@ function excluirBal(id){
 }
 function fecharM(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ── MODAL DETALHE MAU USO ─────────────────────────────────────────────────────
+function abrirMauUso(){
+  const lista = ocorrencias.filter(o=>o.mauUso).sort((a,b)=>new Date(b.dataQuebra||0)-new Date(a.dataQuebra||0));
+  const corpo = document.getElementById('mauuso-corpo');
+  if(!lista.length){
+    corpo.innerHTML = '<div class="ia-loading" style="padding:30px">Nenhuma quebra classificada como mau uso até o momento.</div>';
+  } else {
+    corpo.innerHTML = `<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>
+      <th>TAG</th><th>Setor</th><th>Data quebra</th><th>Problema relatado</th><th>Status</th><th>Custo</th>
+    </tr></thead><tbody>${lista.map(o=>{
+      const b = balancas.find(x=>x.id===o.balancaId);
+      return `<tr>
+        <td><strong>${nomeBal(o.balancaId)}</strong></td>
+        <td>${o.setor||b?.setor||'—'}</td>
+        <td>${fd(o.dataQuebra)}</td>
+        <td>${o.problemaConstatado||'—'}</td>
+        <td>${statusBadge(getStatus(o))}</td>
+        <td>${o.custo?fmt(o.custo):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> quebra(s) por mau uso</div>`;
+  }
+  document.getElementById('m-mauuso').classList.add('open');
+}
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll(){
