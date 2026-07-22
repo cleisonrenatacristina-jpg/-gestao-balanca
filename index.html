@@ -1929,7 +1929,7 @@ function renderManPend(){
   const qtdForam    = foramBase.length;
   const qtdVoltaram = foramBase.filter(o=>o.dataRetorno).length;
   const aindaFora   = qtdForam - qtdVoltaram;
-  const listaFora   = foramBase.filter(o=>!o.dataRetorno && o.fbId);
+  const listaFora   = foramBase.filter(o=>!o.dataRetorno);
 
   document.getElementById('mv-entradas').textContent = qtdForam;
   document.getElementById('mv-voltaram').textContent = qtdVoltaram;
@@ -1952,7 +1952,7 @@ function renderManPend(){
   }
 
   // Chips: aguardando saída → clique preenche Etapa 2 (Saída)
-  let aguardando = ocorrencias.filter(o=>!o.dataRetirada&&!o.dataRetorno&&getStatus(o)!=='DESCARTADO'&&o.fbId);
+  let aguardando = ocorrencias.filter(o=>!o.dataRetirada&&!o.dataRetorno&&getStatus(o)!=='DESCARTADO');
   if(fMes) aguardando = aguardando.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(fMes));
   const blocoAg = document.getElementById('bloco-aguardando');
   if(aguardando.length){
@@ -3599,6 +3599,9 @@ function reconciliarSaidaComOrcamentos(orcs){
       };
       ocorrencias.push(oc);
       mudou = true;
+      fetch(`${DB}/ocorrencias.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        tag:bal.tag,dataQuebra:oc.dataQuebra,turno:'',setor:'',problema:'',status:'AGUARDANDO',timestamp:Date.now()
+      })}).then(r=>r.json()).then(res=>{if(res.name){oc.fbId=res.name;salvar();}}).catch(()=>{});
     }
     if(!oc.dataRetirada){
       oc.dataRetirada = maisRecente.dataOrcamento || new Date().toISOString().slice(0,10);
