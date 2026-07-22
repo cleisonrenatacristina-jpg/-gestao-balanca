@@ -2808,6 +2808,14 @@ function step2Salvar(){
   if(!bal){stepMsg('s2-msg','TAG não encontrada.','err');return;}
   const data=document.getElementById('s2-data').value;
   if(!data){stepMsg('s2-msg','Informe a data de saída.','err');return;}
+
+  // Bloqueia registrar a mesma saída duas vezes: mesma TAG com a mesma data de saída já registrada.
+  const duplicada = ocorrencias.find(o=>o.balancaId===bal.id && o.dataRetirada===data);
+  if(duplicada){
+    stepMsg('s2-msg',`❌ Já existe uma saída de ${bal.tag} registrada com essa mesma data (${fd(data)}). Verifique se não é duplicidade.`,'err');
+    return;
+  }
+
   let oc=findOcAtiva(bal.id, o=>!o.dataRetirada);
   let criouEntrada=false;
   if(!oc){
