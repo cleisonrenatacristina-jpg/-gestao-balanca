@@ -3573,12 +3573,49 @@ function reconciliarComOcorrencias(orcs){
   if(mudou){ salvar(); renderAll(); sincronizarFirebase(); }
 }
 
+// Assim que a terceirizada gera um orçamento pra uma TAG (qualquer status — AGUARDANDO,
+// APROVADO ou REPROVADO), ela já está fisicamente lá, então a ocorrência tem que ser
+// declarada "saiu" (dataRetirada/numeroOS preenchidos) mesmo que a Etapa 2 não tenha sido
+// feita manualmente no index.html — senão o card "Fora da Fábrica" não contava esses casos.
+function reconciliarSaidaComOrcamentos(orcs){
+  let mudou = false;
+  const orcsPorTag = {};
+  orcs.forEach(o=>{ (orcsPorTag[o.tag] = orcsPorTag[o.tag] || []).push(o); });
+  Object.keys(orcsPorTag).forEach(tag=>{
+    const bal = findBal(tag);
+    if(!bal) return;
+    const orcsTag = orcsPorTag[tag].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+    const maisRecente = orcsTag[orcsTag.length-1];
+    let oc = findOcAtiva(bal.id, o=>!o.dataRetorno && getStatus(o)!=='DESCARTADO');
+    if(!oc){
+      oc = {
+        id:uid(), balancaId:bal.id,
+        numeroOS:'', dataQuebra:maisRecente.dataOrcamento||new Date().toISOString().slice(0,10),
+        turno:'', setor:'', problemaConstatado:'',
+        dataRetirada:null, dataAprovacao:null, previsaoChegada:null,
+        status:'AGUARDANDO APROVAÇÃO', aprovadoPor:'', dataRetorno:null, custo:0,
+        descartado:false, quemDescartou:'', dataDescarte:null, capDiv:bal.capDiv||'', obs:'',
+        valorOrcamento:0, qtdOrcamento:0, quemAcompanhouTeste:'', quemValidou:''
+      };
+      ocorrencias.push(oc);
+      mudou = true;
+    }
+    if(!oc.dataRetirada){
+      oc.dataRetirada = maisRecente.dataOrcamento || new Date().toISOString().slice(0,10);
+      mudou = true;
+    }
+    if(maisRecente.numeroOS && !oc.numeroOS){ oc.numeroOS = maisRecente.numeroOS; mudou = true; }
+  });
+  if(mudou){ salvar(); renderAll(); }
+}
+
 async function carregarAprovacoes(){
   try {
     const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
     const orcs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
     orcs.sort((a,b)=>b.timestamp-a.timestamp);
     _orcsAprov = orcs;
+    reconciliarSaidaComOrcamentos(orcs);
     reconciliarComOcorrencias(orcs);
 
     const orcsAg    = orcs.filter(o=>o.status==='AGUARDANDO');
