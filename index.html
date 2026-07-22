@@ -592,6 +592,16 @@ document.addEventListener('DOMContentLoaded', function(){
             <input type="text" id="s4-acomp" placeholder="Nome do responsável">
             <span class="step-lbl">Quem validou</span>
             <input type="text" id="s4-validou" placeholder="Nome do responsável">
+            <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:.85rem;cursor:pointer;color:#9a3412">
+              <input type="checkbox" id="s4-garantia-chk" onchange="document.getElementById('s4-garantia-bloco').style.display=this.checked?'block':'none'">
+              ⚠️ Apresentou defeito no teste — já retornar à terceirizada em garantia
+            </label>
+            <div id="s4-garantia-bloco" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px;margin-bottom:10px">
+              <span class="step-lbl">Data que retornou à terceirizada (garantia)</span>
+              <input type="date" id="s4-garantia-data">
+              <span class="step-lbl">Defeito apresentado no teste</span>
+              <input type="text" id="s4-garantia-obs" placeholder="Ex: voltou a apresentar instabilidade no visor">
+            </div>
             <div id="s4-msg" class="step-msg"></div>
             <button class="step-btn sbtn-green" onclick="step4Salvar()">REGISTRAR RETORNO</button>
           </div>
@@ -2888,6 +2898,17 @@ async function step4Salvar(){
   oc.quemAcompanhouTeste=document.getElementById('s4-acomp').value.trim();
   oc.quemValidou=document.getElementById('s4-validou').value.trim();
 
+  // Apresentou defeito no teste, na hora do retorno: a balança chegou a dar entrada na
+  // fábrica (dataRetorno preenchida), mas já volta pra terceirizada em garantia no mesmo
+  // registro — fica marcada como "fora" de novo até a garantia realmente voltar.
+  const apresentouDefeito = document.getElementById('s4-garantia-chk').checked;
+  if(apresentouDefeito){
+    oc.dataGarantiaSaida = document.getElementById('s4-garantia-data').value || oc.dataRetorno;
+    oc.dataGarantiaRetorno = null;
+    const obsGarantia = document.getElementById('s4-garantia-obs').value.trim();
+    if(obsGarantia) oc.obs = (oc.obs?oc.obs+' | ':'')+`Defeito no teste de retorno: ${obsGarantia}`;
+  }
+
   // Retorno de fábrica = já foi aprovado na terceirizada. Busca o orçamento aprovado
   // mais recente dessa TAG e preenche Orçamento & Decisão automaticamente, em vez de
   // pedir pra digitar de novo o que já foi decidido na aba Aprovações.
@@ -2931,9 +2952,15 @@ async function step4Salvar(){
   salvar();
   document.getElementById('s4-tag').value='';
   document.getElementById('s4-retorno').value='';
-  stepMsg('s4-msg', criouEntrada
-    ? `✅ Retorno de ${bal.tag} registrado! (não havia entrada em aberto — criei automaticamente)`
-    : `✅ Retorno de ${bal.tag} registrado!`);
+  document.getElementById('s4-garantia-chk').checked=false;
+  document.getElementById('s4-garantia-bloco').style.display='none';
+  document.getElementById('s4-garantia-data').value='';
+  document.getElementById('s4-garantia-obs').value='';
+  stepMsg('s4-msg', apresentouDefeito
+    ? `⚠️ Retorno de ${bal.tag} registrado — e já marcado como devolvido à terceirizada em garantia!`
+    : criouEntrada
+      ? `✅ Retorno de ${bal.tag} registrado! (não havia entrada em aberto — criei automaticamente)`
+      : `✅ Retorno de ${bal.tag} registrado!`);
   renderManPend();renderDashboard();
 }
 
