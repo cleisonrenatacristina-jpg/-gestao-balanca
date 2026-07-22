@@ -410,6 +410,10 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
     <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
   </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-forvolta">
+    <div class="stat" style="border-color:#fdba74;background:#fff7ed;cursor:pointer" onclick="abrirForaVoltaram('fora')" title="Clique para ver quais balanças"><div class="v" style="color:#9a3412" id="s-fora-qtd">0</div><div class="l" style="color:#9a3412">🚚 Fora da Fábrica (na terceirizada)</div></div>
+    <div class="stat" style="border-color:#86efac;background:#f0fdf4;cursor:pointer" onclick="abrirForaVoltaram('voltaram')" title="Clique para ver quais balanças"><div class="v" style="color:#166534" id="s-voltaram-qtd">0</div><div class="l" style="color:#166534">📥 Voltaram pra Fábrica (total)</div></div>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-mauuso">
     <div class="stat" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-qtd">0</div><div class="l" style="color:#991b1b">🔻 Quebras por Mau Uso (queda) — total</div></div>
     <div class="stat" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-custo">R$ 0,00</div><div class="l" style="color:#991b1b">💸 Custo aprovado por Mau Uso</div></div>
@@ -900,6 +904,20 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="modal-foot">
       <button class="btn btn-o" onclick="fecharM('m-bal')">Cancelar</button>
       <button class="btn btn-p" onclick="salvarEBal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE FORA/VOLTARAM -->
+<div class="modal-ov" id="m-foravolta">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0" id="foravolta-titulo">Balanças</h3>
+      <button onclick="fecharM('m-foravolta')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="foravolta-corpo" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="fecharM('m-foravolta')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1593,6 +1611,14 @@ function renderDashboard(){
   document.getElementById('s-mauuso-qtd').textContent=ocsMauUso.length;
   const custoMauUso=ocsMauUso.filter(o=>o.status==='APROVADO'||o.status==='ENTREGUE').reduce((s,o)=>s+(Number(o.custo)||0),0);
   document.getElementById('s-mauuso-custo').textContent=fmt(custoMauUso);
+  // Fora da fábrica (na terceirizada): já saiu (tem OS) e ainda não teve entrada de retorno registrada,
+  // independente de orçamento estar aguardando, aprovado ou reprovado — só conta como "voltou" quando
+  // a Etapa 4 (retorno) for de fato registrada (dataRetorno preenchida).
+  const ocsFora=ocorrencias.filter(o=>o.numeroOS && !o.dataRetorno && getStatus(o)!=='DESCARTADO');
+  document.getElementById('s-fora-qtd').textContent=ocsFora.length;
+  // Voltaram: total histórico de ocorrências que já tiveram entrada de retorno registrada
+  const ocsVoltaram=ocorrencias.filter(o=>!!o.dataRetorno);
+  document.getElementById('s-voltaram-qtd').textContent=ocsVoltaram.length;
   // Orçamentos aguardando aprovação (terceirizada)
   fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
     const n=d?Object.values(d).filter(o=>o.status==='AGUARDANDO').length:0;
@@ -2531,6 +2557,37 @@ function excluirBal(id){
 }
 function fecharM(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ── MODAL DETALHE FORA/VOLTARAM ───────────────────────────────────────────────
+function abrirForaVoltaram(tipo){
+  const titulo=document.getElementById('foravolta-titulo');
+  const corpo=document.getElementById('foravolta-corpo');
+  const hoje=new Date().toISOString().slice(0,10);
+  let lista, cols, linhas;
+  if(tipo==='fora'){
+    titulo.textContent='🚚 Balanças Fora da Fábrica (na terceirizada)';
+    lista=ocorrencias.filter(o=>o.numeroOS && !o.dataRetorno && getStatus(o)!=='DESCARTADO')
+      .sort((a,b)=>new Date(a.dataRetirada||a.dataQuebra||0)-new Date(b.dataRetirada||b.dataQuebra||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Status','Dias fora'];
+    linhas=lista.map(o=>{
+      const dias=o.dataRetirada?diffD(o.dataRetirada,hoje):'—';
+      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${statusBadge(getStatus(o))}</td><td>${dias}${dias!=='—'?'d':''}</td></tr>`;
+    });
+  } else {
+    titulo.textContent='📥 Balanças que Voltaram pra Fábrica';
+    lista=ocorrencias.filter(o=>!!o.dataRetorno)
+      .sort((a,b)=>new Date(b.dataRetorno||0)-new Date(a.dataRetorno||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Retorno','Custo'];
+    linhas=lista.map(o=>`<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td></tr>`);
+  }
+  if(!lista.length){
+    corpo.innerHTML='<div class="ia-loading" style="padding:30px">Nenhuma balança nessa condição no momento.</div>';
+  } else {
+    corpo.innerHTML=`<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> balança(s)</div>`;
+  }
+  document.getElementById('m-foravolta').classList.add('open');
+}
 
 // ── MODAL DETALHE MAU USO ─────────────────────────────────────────────────────
 function abrirMauUso(){
