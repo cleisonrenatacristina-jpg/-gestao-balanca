@@ -908,6 +908,19 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
 </div>
 
+<!-- MODAL GARANTIA -->
+<div class="modal-ov" id="m-garantia">
+  <div class="modal" style="max-width:420px">
+    <h3 id="garantia-titulo">Garantia</h3>
+    <div id="garantia-info" style="font-size:.83rem;color:var(--muted);margin-bottom:10px"></div>
+    <div><label id="garantia-label">Data</label><input type="date" id="garantia-data"></div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="fecharM('m-garantia')">Cancelar</button>
+      <button class="btn btn-p" onclick="salvarGarantia()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DETALHE FORA/VOLTARAM -->
 <div class="modal-ov" id="m-foravolta">
   <div class="modal" style="max-width:760px">
@@ -1614,10 +1627,10 @@ function renderDashboard(){
   // Fora da fábrica (na terceirizada): já saiu (tem OS) e ainda não teve entrada de retorno registrada,
   // independente de orçamento estar aguardando, aprovado ou reprovado — só conta como "voltou" quando
   // a Etapa 4 (retorno) for de fato registrada (dataRetorno preenchida).
-  const ocsFora=ocorrencias.filter(o=>o.numeroOS && !o.dataRetorno && getStatus(o)!=='DESCARTADO');
+  const ocsFora=ocorrencias.filter(estaForaDaFabrica);
   document.getElementById('s-fora-qtd').textContent=ocsFora.length;
-  // Voltaram: total histórico de ocorrências que já tiveram entrada de retorno registrada
-  const ocsVoltaram=ocorrencias.filter(o=>!!o.dataRetorno);
+  // Voltaram: já teve retorno registrado e não está de novo fora em garantia agora
+  const ocsVoltaram=ocorrencias.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o));
   document.getElementById('s-voltaram-qtd').textContent=ocsVoltaram.length;
   // Orçamentos aguardando aprovação (terceirizada)
   fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
@@ -2559,6 +2572,14 @@ function fecharM(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 
 // ── MODAL DETALHE FORA/VOLTARAM ───────────────────────────────────────────────
+// Considera "fora da fábrica" tanto quem nunca voltou da primeira saída quanto
+// quem já voltou mas foi de novo pra terceirizada em garantia e ainda não voltou dessa vez.
+function estaForaDaFabrica(o){
+  if(getStatus(o)==='DESCARTADO') return false;
+  if(o.numeroOS && !o.dataRetorno) return true;
+  if(o.dataRetorno && o.dataGarantiaSaida && !o.dataGarantiaRetorno) return true;
+  return false;
+}
 function abrirForaVoltaram(tipo){
   const titulo=document.getElementById('foravolta-titulo');
   const corpo=document.getElementById('foravolta-corpo');
@@ -2566,27 +2587,70 @@ function abrirForaVoltaram(tipo){
   let lista, cols, linhas;
   if(tipo==='fora'){
     titulo.textContent='🚚 Balanças Fora da Fábrica (na terceirizada)';
-    lista=ocorrencias.filter(o=>o.numeroOS && !o.dataRetorno && getStatus(o)!=='DESCARTADO')
-      .sort((a,b)=>new Date(a.dataRetirada||a.dataQuebra||0)-new Date(b.dataRetirada||b.dataQuebra||0));
-    cols=['TAG','Setor','N° O.S.','Saída','Status','Dias fora'];
+    lista=ocorrencias.filter(estaForaDaFabrica)
+      .sort((a,b)=>new Date(a.dataGarantiaSaida||a.dataRetirada||a.dataQuebra||0)-new Date(b.dataGarantiaSaida||b.dataRetirada||b.dataQuebra||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Situação','Dias fora',''];
     linhas=lista.map(o=>{
-      const dias=o.dataRetirada?diffD(o.dataRetirada,hoje):'—';
-      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${statusBadge(getStatus(o))}</td><td>${dias}${dias!=='—'?'d':''}</td></tr>`;
+      const emGarantia = o.dataRetorno && o.dataGarantiaSaida && !o.dataGarantiaRetorno;
+      const dataBase = emGarantia ? o.dataGarantiaSaida : o.dataRetirada;
+      const dias=dataBase?diffD(dataBase,hoje):'—';
+      const situacao = emGarantia
+        ? `<span class="badge b-warn">🔧 Em garantia</span>`
+        : statusBadge(getStatus(o));
+      const acao = emGarantia
+        ? `<button class="btn btn-o" style="padding:4px 10px;font-size:.72rem" onclick="abrirGarantia('${o.id}','retorno')">📥 Voltou da garantia</button>`
+        : '';
+      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(dataBase)}</td><td>${situacao}</td><td>${dias}${dias!=='—'?'d':''}</td><td>${acao}</td></tr>`;
     });
   } else {
     titulo.textContent='📥 Balanças que Voltaram pra Fábrica';
-    lista=ocorrencias.filter(o=>!!o.dataRetorno)
-      .sort((a,b)=>new Date(b.dataRetorno||0)-new Date(a.dataRetorno||0));
-    cols=['TAG','Setor','N° O.S.','Saída','Retorno','Custo'];
-    linhas=lista.map(o=>`<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${fd(o.dataRetorno)}</td><td>${o.custo?fmt(o.custo):'—'}</td></tr>`);
+    lista=ocorrencias.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o))
+      .sort((a,b)=>new Date(b.dataGarantiaRetorno||b.dataRetorno||0)-new Date(a.dataGarantiaRetorno||a.dataRetorno||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Retorno','Custo',''];
+    linhas=lista.map(o=>{
+      const garantiaTag = o.dataGarantiaRetorno ? `<br><span style="font-size:.7rem;color:var(--muted)">🔧 voltou da garantia em ${fd(o.dataGarantiaRetorno)}</span>` : '';
+      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${fd(o.dataRetorno)}${garantiaTag}</td><td>${o.custo?fmt(o.custo):'—'}</td><td><button class="btn btn-o" style="padding:4px 10px;font-size:.72rem" onclick="abrirGarantia('${o.id}','saida')">🔧 Retornou em garantia</button></td></tr>`;
+    });
   }
   if(!lista.length){
     corpo.innerHTML='<div class="ia-loading" style="padding:30px">Nenhuma balança nessa condição no momento.</div>';
   } else {
-    corpo.innerHTML=`<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>
+    corpo.innerHTML=`<div style="overflow-x:auto"><table style="min-width:720px"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>
     <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> balança(s)</div>`;
   }
   document.getElementById('m-foravolta').classList.add('open');
+}
+
+// ── GARANTIA: balança que voltou mas teve que retornar à terceirizada de novo ────
+let garantiaOcId=null, garantiaModo=null;
+function abrirGarantia(ocId, modo){
+  const o=ocorrencias.find(x=>x.id===ocId);
+  if(!o) return;
+  garantiaOcId=ocId; garantiaModo=modo;
+  const hoje=new Date().toISOString().slice(0,10);
+  document.getElementById('garantia-info').textContent=`Balança ${nomeBal(o.balancaId)} — O.S. ${o.numeroOS||'—'}`;
+  const titulo=document.getElementById('garantia-titulo');
+  const label=document.getElementById('garantia-label');
+  const dataInp=document.getElementById('garantia-data');
+  if(modo==='saida'){
+    titulo.textContent='🔧 Retornou à Terceirizada em Garantia';
+    label.textContent='Data que a balança retornou pra terceirizada (garantia)';
+    dataInp.value=o.dataGarantiaSaida||hoje;
+  } else {
+    titulo.textContent='📥 Voltou da Garantia';
+    label.textContent='Data que a balança voltou da garantia';
+    dataInp.value=o.dataGarantiaRetorno||hoje;
+  }
+  document.getElementById('m-garantia').classList.add('open');
+}
+function salvarGarantia(){
+  const o=ocorrencias.find(x=>x.id===garantiaOcId);
+  const data=document.getElementById('garantia-data').value;
+  if(!o||!data) return;
+  if(garantiaModo==='saida'){ o.dataGarantiaSaida=data; o.dataGarantiaRetorno=null; }
+  else { o.dataGarantiaRetorno=data; }
+  salvar(); fecharM('m-garantia'); renderAll();
+  abrirForaVoltaram(garantiaModo==='saida'?'fora':'voltaram');
 }
 
 // ── MODAL DETALHE MAU USO ─────────────────────────────────────────────────────
