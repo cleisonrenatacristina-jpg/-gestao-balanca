@@ -3490,6 +3490,17 @@ let _orcsAprov = [];
 // Cruza orçamentos APROVADOS (aba Aprovações) com as balanças ainda no
 // terceiro (ocorrência com saída registrada e sem retorno) e sincroniza
 // o status pra "Aprovado" (fica aguardando chegada, sem regredir nada).
+// Preenche na ocorrência os campos de "Orçamento & Decisão" a partir de um orçamento
+// aprovado da terceirizada — usado tanto na hora da aprovação quanto no backfill histórico.
+function preencherOcComOrcamento(oc, orc){
+  let mudou = false;
+  if(!oc.valorOrcamento && orc.valorTotal){ oc.valorOrcamento = orc.valorTotal; mudou = true; }
+  if(!oc.custo && orc.valorTotal){ oc.custo = orc.valorTotal; mudou = true; }
+  if(!oc.aprovadoPor && orc.aprovadoPor){ oc.aprovadoPor = orc.aprovadoPor; mudou = true; }
+  if(!oc.dataAprovacao && (orc.dataAprovacao||orc.dataOrcamento)){ oc.dataAprovacao = orc.dataAprovacao||orc.dataOrcamento; mudou = true; }
+  if(orc.numeroOS && !oc.numeroOS){ oc.numeroOS = orc.numeroOS; mudou = true; }
+  return mudou;
+}
 function reconciliarComOcorrencias(orcs){
   let mudou = false;
   orcs.filter(o=>o.status==='APROVADO').forEach(orc=>{
@@ -3500,9 +3511,29 @@ function reconciliarComOcorrencias(orcs){
     oc.status = 'APROVADO';
     oc.aprovadoPor = orc.aprovadoPor || 'Manutenção';
     oc.dataAprovacao = orc.dataAprovacao || orc.dataOrcamento || new Date().toISOString().slice(0,10);
-    if(orc.valorTotal) oc.custo = orc.valorTotal;
+    if(orc.valorTotal){ oc.custo = orc.valorTotal; oc.valorOrcamento = orc.valorTotal; }
     if(orc.numeroOS && !oc.numeroOS) oc.numeroOS = orc.numeroOS;
     mudou = true;
+  });
+  // Backfill: ocorrências que já foram ENTREGUE/APROVADO mas ficaram com Orçamento &
+  // Decisão em branco (ex.: retorno chegou pelo almoxarifado sem passar pela Etapa 4).
+  // Casa orçamentos APROVADOS com as ocorrências decididas da mesma TAG em ordem
+  // cronológica (1º orçamento aprovado com a 1ª ocorrência decidida, e assim por diante).
+  const orcsAprovPorTag = {};
+  orcs.filter(o=>o.status==='APROVADO').forEach(o=>{
+    (orcsAprovPorTag[o.tag] = orcsAprovPorTag[o.tag] || []).push(o);
+  });
+  Object.keys(orcsAprovPorTag).forEach(tag=>{
+    const bal = findBal(tag);
+    if(!bal) return;
+    const orcsTag = orcsAprovPorTag[tag].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+    const ocsTag = ocorrencias
+      .filter(o=>o.balancaId===bal.id && (o.status==='APROVADO'||o.status==='ENTREGUE'))
+      .sort((a,b)=>(a.dataQuebra||'').localeCompare(b.dataQuebra||''));
+    ocsTag.forEach((oc,i)=>{
+      const orc = orcsTag[i];
+      if(orc && preencherOcComOrcamento(oc, orc)) mudou = true;
+    });
   });
   if(mudou){ salvar(); renderAll(); sincronizarFirebase(); }
 }
