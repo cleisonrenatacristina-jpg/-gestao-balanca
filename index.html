@@ -2954,6 +2954,7 @@ function step3Salvar(){
   stepMsg('s3-msg',`✅ Decisão "${decisao}" salva para ${bal.tag}!`);
   renderManPend();renderDashboard();
   sincronizarFirebase();
+  carregarAprovacoes();
 }
 
 async function step4Salvar(){
@@ -3047,6 +3048,7 @@ async function step4Salvar(){
       ? `✅ Retorno de ${bal.tag} registrado! (não havia entrada em aberto — criei automaticamente)`
       : `✅ Retorno de ${bal.tag} registrado!`);
   renderManPend();renderDashboard();
+  carregarAprovacoes();
 }
 
 function step5Salvar(){
@@ -3710,6 +3712,33 @@ function reconciliarSaidaComOrcamentos(orcs){
   if(mudou){ salvar(); renderAll(); }
 }
 
+// Caminho inverso do reconciliarComOcorrencias: se a ocorrência da TAG já foi decidida
+// (aprovada, reprovada ou já entregue — que só acontece depois de aprovada), o orçamento
+// correspondente não pode continuar contando como "aguardando aprovação" pra sempre. Sem
+// isso, aprovar/entregar pela aba Ocorrências (Etapas 3/4) nunca refletia de volta no
+// orçamento gerado pela terceirizada, que ficava preso em AGUARDANDO mesmo já resolvido.
+function reconciliarOrcamentoComDecisao(orcs){
+  orcs.filter(o=>o.status==='AGUARDANDO').forEach(orc=>{
+    const bal = findBal(orc.tag);
+    if(!bal) return;
+    const decididos = ['APROVADO','REPROVADO','ENTREGUE'];
+    let oc = orc.numeroOS
+      ? ocorrencias.find(o=>o.balancaId===bal.id && o.numeroOS===orc.numeroOS && decididos.includes(o.status))
+      : null;
+    if(!oc){
+      const dataOrc = orc.dataOrcamento||'';
+      oc = dataOrc ? ocorrencias.find(o=>o.balancaId===bal.id && o.dataQuebra
+        && o.dataQuebra<=dataOrc && (!o.dataRetorno||o.dataRetorno>=dataOrc)
+        && decididos.includes(o.status)) : null;
+    }
+    if(!oc) return;
+    const novoStatus = oc.status==='REPROVADO' ? 'REPROVADO' : 'APROVADO';
+    fetch(`${DB}/orcamentos/${orc.id}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      status:novoStatus, dataAprovacao: oc.dataAprovacao||new Date().toISOString().slice(0,10), aprovadoPor: oc.aprovadoPor||'Manutenção'
+    })}).catch(()=>{});
+  });
+}
+
 async function carregarAprovacoes(){
   try {
     const data = await fetch(`${DB}/orcamentos.json`).then(r=>r.json());
@@ -3718,6 +3747,7 @@ async function carregarAprovacoes(){
     _orcsAprov = orcs;
     reconciliarSaidaComOrcamentos(orcs);
     reconciliarComOcorrencias(orcs);
+    reconciliarOrcamentoComDecisao(orcs);
 
     const orcsAg    = orcs.filter(o=>o.status==='AGUARDANDO');
     const orcsAprov = orcs.filter(o=>o.status==='APROVADO');
