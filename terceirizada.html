@@ -888,9 +888,13 @@ async function carregarPendentesRecolha(){
   try {
     const data = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
     const ocs = data ? Object.entries(data).map(([id,v])=>({id,...v})) : [];
+    // Alinhado com o almoxarifado.html: a mesma balança só conta como "falta recolher"
+    // enquanto o status no Firebase ainda for AGUARDANDO (deu entrada de quebra e ainda
+    // não foi marcada como recolhida/saída). Antes isso dependia do campo dataRetirada,
+    // que raramente chegava até aqui (só era setado localmente no index.html e nem sempre
+    // sincronizado), causando contagem desalinhada com a realidade do almoxarifado.
     const pendentes = ocs.filter(o =>
-      o.tag && o.dataQuebra && !o.dataRetirada && !o.dataRetorno &&
-      o.status !== 'DESCARTADO' && o.status !== 'VOLTOU'
+      o.tag && o.dataQuebra && (o.status === 'AGUARDANDO' || !o.status)
     ).sort((a,b)=>(a.dataQuebra||'').localeCompare(b.dataQuebra||''));
 
     const countEl = document.getElementById('rec-count');

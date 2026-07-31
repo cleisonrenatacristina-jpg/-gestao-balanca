@@ -402,6 +402,13 @@ document.addEventListener('DOMContentLoaded', function(){
   <div id="agente-alertas" style="display:none;margin-bottom:14px"></div>
   <div id="alertas"></div>
   <div id="alertas-meta"></div>
+  <div class="card" style="margin-bottom:14px;padding:12px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div style="font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase">📅 Filtrar dashboard por mês</div>
+      <div style="font-size:.72rem;color:var(--muted)" id="dash-filtro-resumo"></div>
+    </div>
+    <div id="dash-filtro-meses" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="dash-stats">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
     <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (aguardando retorno)</div></div>
@@ -1609,6 +1616,35 @@ function renderTempoStat(lista, campoIni, campoFim, elId, elNId, filtroExtra){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
+// Meses (dataQuebra) selecionados pra filtrar o dashboard. Vazio = todos os meses (padrão).
+let dashMesesSelecionados=[];
+function mesesDisponiveisDash(){
+  const set=new Set();
+  ocorrencias.forEach(o=>{ if(o.dataQuebra) set.add(o.dataQuebra.slice(0,7)); });
+  return Array.from(set).sort().reverse();
+}
+function toggleMesDash(mes){
+  if(mes===null){ dashMesesSelecionados=[]; }
+  else {
+    const i=dashMesesSelecionados.indexOf(mes);
+    if(i>=0) dashMesesSelecionados.splice(i,1); else dashMesesSelecionados.push(mes);
+  }
+  renderDashboard();
+}
+function renderFiltroMesesDash(){
+  const wrap=document.getElementById('dash-filtro-meses');
+  const resumo=document.getElementById('dash-filtro-resumo');
+  if(!wrap) return;
+  const meses=mesesDisponiveisDash();
+  const todosOn=dashMesesSelecionados.length===0;
+  const chip=(label,on,onclick)=>`<span onclick="${onclick}" style="cursor:pointer;user-select:none;padding:5px 12px;border-radius:20px;font-size:.78rem;font-weight:700;border:1.5px solid ${on?'var(--p)':'var(--bdr)'};background:${on?'var(--p)':'#fff'};color:${on?'#fff':'var(--txt)'}">${label}</span>`;
+  wrap.innerHTML = chip('Todos os meses',todosOn,'toggleMesDash(null)')
+    + meses.map(m=>chip(nomeMes(m),dashMesesSelecionados.includes(m),`toggleMesDash('${m}')`)).join('');
+  resumo.textContent = todosOn
+    ? 'Mostrando todo o período'
+    : `Mostrando ${dashMesesSelecionados.length} mês(es) selecionado(s)`;
+}
+
 function renderDashboard(){
   lerAlertasAgente(); // alertas do agente automático
   // Proteção: se dados estiverem vazios, força reimportação
@@ -1619,28 +1655,35 @@ function renderDashboard(){
   }
 
   renderAlertasMeta();
+  renderFiltroMesesDash();
   const mes=mesAtual();
   const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
   const custoMes=ocMes.reduce((s,o)=>s+(o.custo||0),0);
 
-  // Cards: totais gerais (não filtrado por mês)
+  // ocBase: ocorrências restritas ao(s) mês(es) selecionado(s) no filtro (por dataQuebra).
+  // Sem seleção = todos os meses (comportamento igual ao anterior).
+  const ocBase = dashMesesSelecionados.length
+    ? ocorrencias.filter(o=>o.dataQuebra && dashMesesSelecionados.includes(o.dataQuebra.slice(0,7)))
+    : ocorrencias;
+
+  // Cards: "Balanças cadastradas" é o total do cadastro, não filtra por mês. O resto segue ocBase.
   document.getElementById('s-bal').textContent=balancas.length;
-  document.getElementById('s-aprov').textContent=ocorrencias.filter(o=>o.status==='APROVADO').length;
-  document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
-  document.getElementById('s-reprov').textContent=ocorrencias.filter(o=>o.status==='REPROVADO').length;
-  document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+  document.getElementById('s-aprov').textContent=ocBase.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('s-aguard').textContent=ocBase.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  document.getElementById('s-reprov').textContent=ocBase.filter(o=>o.status==='REPROVADO').length;
+  document.getElementById('s-desc').textContent=ocBase.filter(o=>getStatus(o)==='DESCARTADO').length;
   // Mau uso (queda): quantidade total de quebras marcadas, e custo já aprovado dessas
-  const ocsMauUso=ocorrencias.filter(o=>o.mauUso);
+  const ocsMauUso=ocBase.filter(o=>o.mauUso);
   document.getElementById('s-mauuso-qtd').textContent=ocsMauUso.length;
   const custoMauUso=ocsMauUso.filter(o=>o.status==='APROVADO'||o.status==='ENTREGUE').reduce((s,o)=>s+(Number(o.custo)||0),0);
   document.getElementById('s-mauuso-custo').textContent=fmt(custoMauUso);
   // Fora da fábrica (na terceirizada): já saiu (tem OS) e ainda não teve entrada de retorno registrada,
   // independente de orçamento estar aguardando, aprovado ou reprovado — só conta como "voltou" quando
   // a Etapa 4 (retorno) for de fato registrada (dataRetorno preenchida).
-  const ocsFora=ocorrencias.filter(estaForaDaFabrica);
+  const ocsFora=ocBase.filter(estaForaDaFabrica);
   document.getElementById('s-fora-qtd').textContent=ocsFora.length;
   // Voltaram: já teve retorno registrado e não está de novo fora em garantia agora
-  const ocsVoltaram=ocorrencias.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o));
+  const ocsVoltaram=ocBase.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o));
   document.getElementById('s-voltaram-qtd').textContent=ocsVoltaram.length;
   // Orçamentos aguardando aprovação (terceirizada)
   fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
@@ -1668,21 +1711,21 @@ function renderDashboard(){
   if(mesLabelEl) mesLabelEl.textContent=mesLabel;
 
   // alertas
-  const reincs=ocorrencias.filter(isReinc);
+  const reincs=ocBase.filter(isReinc);
   const alertEl=document.getElementById('alertas');
   alertEl.innerHTML='';
   if(reincs.length){alertEl.innerHTML+=`<div class="alert al-d">⚡ <strong>${reincs.length} reincidência(s)</strong> detectadas — balanças que quebraram em menos de 7 dias após retorno do conserto.</div>`;}
-  const pend=ocorrencias.filter(o=>getStatus(o)==='PENDENTE').length;
+  const pend=ocBase.filter(o=>getStatus(o)==='PENDENTE').length;
   if(pend){alertEl.innerHTML+=`<div class="alert al-w">⏳ <strong>${pend} ocorrência(s) pendente(s)</strong> aguardam preenchimento pela Manutenção (sem N° O.S. ainda).</div>`;}
 
   // Gráficos
   const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
-  ocorrencias.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
+  ocBase.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
   const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
   mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
 
   const cBal={};balancas.forEach(b=>cBal[b.id]={tag:b.tag,c:0});
-  ocorrencias.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
+  ocBase.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
   const dC=Object.values(cBal).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,15);
   mkChart('cC','bar',dC.map(x=>x.tag),[{label:'Custo',data:dC.map(x=>x.c),backgroundColor:'#057a55',borderRadius:5}],true);
 
@@ -1699,7 +1742,7 @@ function renderDashboard(){
   }).join('')}</tbody></table>`;
 
   // descartadas
-  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  const descs=ocBase.filter(o=>getStatus(o)==='DESCARTADO');
   const dd=document.getElementById('t-descartadas-dash');
   if(dd){
     if(!descs.length){dd.innerHTML='<p class="empty">Nenhuma balança descartada.</p>';}
@@ -3388,17 +3431,29 @@ async function sincronizarFirebase(){
     if(ocorrencias.length !== antes){ mudou = true; }
 
     // Passo 1: recupera fbIds e sincroniza campos do Firebase que o local pode não ter
+    // Sempre que dataRetorno chega (de qualquer origem — confirmação direta no almoxarifado
+    // inclusive), o status também precisa virar ENTREGUE aqui — senão o card "Aprovadas
+    // (aguardando retorno)" do dashboard nunca desconta essa balança, já que essa promoção
+    // de status antes só acontecia dentro de step4Salvar (Etapa 4 preenchida manualmente).
+    const marcarEntregue = o => { if(o.status!=='REPROVADO' && o.status!=='DESCARTADO') o.status='ENTREGUE'; };
     registros.forEach(reg => {
       const local = ocorrencias.find(o=>o.fbId===reg.fbId);
       if(local){
         // Puxa dataRetorno do Firebase se o local perdeu (evita regredir status no Passo 3)
-        if(reg.dataRetorno && !local.dataRetorno){ local.dataRetorno=reg.dataRetorno; mudou=true; }
+        if(reg.dataRetorno && !local.dataRetorno){ local.dataRetorno=reg.dataRetorno; marcarEntregue(local); mudou=true; }
+        // Puxa dataRetirada — confirma que a terceirizada já recolheu, mesmo sem passar pela Etapa 2 local
+        if(reg.dataRetirada && !local.dataRetirada){ local.dataRetirada=reg.dataRetirada; mudou=true; }
         return;
       }
       const bal = balancas.find(b=>b.tag===reg.tag);
       if(!bal) return;
       const semFbId = ocorrencias.find(o=>!o.fbId && o.balancaId===bal.id && o.dataQuebra===reg.dataQuebra);
-      if(semFbId){ semFbId.fbId=reg.fbId; if(reg.dataRetorno&&!semFbId.dataRetorno)semFbId.dataRetorno=reg.dataRetorno; mudou=true; }
+      if(semFbId){
+        semFbId.fbId=reg.fbId;
+        if(reg.dataRetorno&&!semFbId.dataRetorno){ semFbId.dataRetorno=reg.dataRetorno; marcarEntregue(semFbId); }
+        if(reg.dataRetirada&&!semFbId.dataRetirada) semFbId.dataRetirada=reg.dataRetirada;
+        mudou=true;
+      }
     });
 
     // Passo 2: importa novos registros AGUARDANDO criados pelo almoxarifado
@@ -3455,6 +3510,7 @@ async function sincronizarFirebase(){
       updates[`/ocorrencias/${o.fbId}/status`] = st;
       updates[`/ocorrencias/${o.fbId}/custo`]  = o.custo||0;
       if(o.dataRetorno) updates[`/ocorrencias/${o.fbId}/dataRetorno`] = o.dataRetorno;
+      if(o.dataRetirada) updates[`/ocorrencias/${o.fbId}/dataRetirada`] = o.dataRetirada;
     });
     if(Object.keys(updates).length){
       fetch(`${DB}/.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).catch(()=>{});

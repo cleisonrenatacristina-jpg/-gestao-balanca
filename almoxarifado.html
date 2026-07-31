@@ -458,15 +458,33 @@ async function carregarDados(){
             ${o.custo?`<br><strong style="color:var(--ok);font-size:.8rem">${fmt(o.custo)}</strong>`:''}
           </div>
           ${o.status==='AGUARDANDO'?`
-            <button onclick="excluirOcAlm('${o.id}')"
-              style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0"
-              title="Excluir este registro">
-              🗑 Excluir
-            </button>
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+              <button onclick="confirmarRecolhida('${o.id}','${o.tag}')"
+                style="background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap"
+                title="Confirmar que a terceirizada recolheu esta balança">
+                ✅ Terceirizada recolheu
+              </button>
+              <button onclick="excluirOcAlm('${o.id}')"
+                style="background:#fde8e8;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap"
+                title="Excluir este registro">
+                🗑 Excluir
+              </button>
+            </div>
           `:'<span style="font-size:.7rem;color:var(--muted);white-space:nowrap">Em andamento</span>'}
         </div>
       </div>`).join('');
   } catch(err){ console.error(err); }
+}
+
+async function confirmarRecolhida(fbId, tag){
+  if(!confirm(`Confirmar que a terceirizada recolheu a balança ${tag}?`)) return;
+  try {
+    const hoje = new Date().toISOString().slice(0,10);
+    await fetch(`${DB}/ocorrencias/${fbId}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'SAIU', dataRetirada:hoje})});
+    showMsg(`✅ ${tag} marcada como recolhida pela terceirizada!`);
+    carregarDados();
+  } catch(e){ showMsg('❌ Erro ao confirmar. Tente novamente.','err'); }
 }
 
 async function excluirOcAlm(fbId){
