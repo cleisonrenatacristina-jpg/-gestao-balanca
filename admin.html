@@ -36,6 +36,15 @@ nav button.active{color:#fff;border-bottom-color:var(--p);font-weight:700}
 .stat{background:var(--card);border-radius:12px;border:1px solid var(--bdr);padding:16px;text-align:center;box-shadow:0 1px 4px rgba(26,10,18,.05)}
 .stat .v{font-size:2rem;font-weight:900;color:var(--p);line-height:1.1}.stat .l{font-size:.68rem;color:var(--muted);margin-top:5px;font-weight:500;letter-spacing:.03em;text-transform:uppercase}
 .stat.red .v{color:var(--danger)}.stat.grn .v{color:var(--ok)}.stat.ora .v{color:#d97706}.stat.pur .v{color:#7c3aed}
+.stat.inf .v{color:#0369a1}
+.stat .sub{font-size:.63rem;color:var(--muted);margin-top:4px}
+.alert{padding:11px 14px;border-radius:8px;font-size:.83rem;margin-bottom:14px;display:flex;align-items:flex-start;gap:9px}
+.al-d{background:#fee2e2;border-left:4px solid var(--danger);color:#991b1b}
+.al-w{background:#fef3c7;border-left:4px solid var(--warn);color:#92400e}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:20px;width:100%;max-width:760px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow-y:auto}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 table{width:100%;border-collapse:collapse;font-size:.8rem}
 thead tr{background:#FAF8FB}
 th{padding:9px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--bdr);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
@@ -189,21 +198,93 @@ document.addEventListener('DOMContentLoaded', function(){
     <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
   </div>
   <h1 class="print-title">Dashboard — Gestão de Balanças</h1>
-  <div class="g5" style="margin-bottom:16px">
+  <div id="alertas"></div>
+  <div class="card no-print" style="margin-bottom:14px;padding:12px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div style="font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase">📅 Filtrar dashboard por mês</div>
+      <div style="font-size:.72rem;color:var(--muted)" id="dash-filtro-resumo"></div>
+    </div>
+    <div id="dash-filtro-meses" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="dash-stats">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
-    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (mês)</div></div>
-    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">Aguardando aprovação</div></div>
-    <div class="stat red"><div class="v" id="s-fora">0</div><div class="l">Na terceirizada</div></div>
-    <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas</div></div>
+    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (aguardando retorno)</div></div>
+    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">⌛ Aguard. aprovação manutenção</div></div>
+    <div class="stat" style="border-color:#bae6fd;background:#f0f9ff"><div class="v" style="color:#0369a1" id="s-aguard-orc">0</div><div class="l" style="color:#0369a1">🔧 Aguard. aprovação orçamento</div></div>
+    <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
+    <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-forvolta">
+    <div class="stat no-print" style="border-color:#fdba74;background:#fff7ed;cursor:pointer" onclick="abrirForaVoltaram('fora')" title="Clique para ver quais balanças"><div class="v" style="color:#9a3412" id="s-fora-qtd">0</div><div class="l" style="color:#9a3412">🚚 Fora da Fábrica (na terceirizada)</div></div>
+    <div class="stat no-print" style="border-color:#86efac;background:#f0fdf4;cursor:pointer" onclick="abrirForaVoltaram('voltaram')" title="Clique para ver quais balanças"><div class="v" style="color:#166534" id="s-voltaram-qtd">0</div><div class="l" style="color:#166534">📥 Voltaram pra Fábrica (total)</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-mauuso">
+    <div class="stat no-print" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-qtd">0</div><div class="l" style="color:#991b1b">🔻 Quebras por Mau Uso (queda) — total</div></div>
+    <div class="stat no-print" style="border-color:#fca5a5;background:#fef2f2;cursor:pointer" onclick="abrirMauUso()" title="Clique para ver quais balanças"><div class="v" style="color:#991b1b" id="s-mauuso-custo">R$ 0,00</div><div class="l" style="color:#991b1b">💸 Custo aprovado por Mau Uso</div></div>
+  </div>
+  <div id="s-mes-bar" style="background:#eff6ff;border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:.8rem;color:var(--pd);display:flex;justify-content:space-between;align-items:center">
+    <span>📅 Quebras este mês: <strong id="s-qmes-val">0</strong> &nbsp;·&nbsp; Custo este mês: <strong id="s-custo-mes-val">R$0</strong></span>
+    <span id="s-mes-label" style="font-weight:600"></span>
   </div>
   <div class="g2">
     <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras por balança — mês atual</div><div class="ch"><canvas id="cQ"></canvas></div></div>
     <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Custo acumulado por balança (top 15)</div><div class="ch"><canvas id="cC"></canvas></div></div>
   </div>
   <div class="card"><div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">Quebras mensais — últimos 6 meses</div><div class="ch"><canvas id="cH"></canvas></div></div>
+
+  <!-- ═══ DASHBOARD DE TEMPOS — ciclo de vida do reparo ═══ -->
+  <div class="card">
+    <div style="font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">⏱ Dashboard de Tempos — Ciclo do reparo (médias, em dias)</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="stat inf">
+        <div class="v" id="t-orc-aprov">—</div>
+        <div class="l">🔧 Orçamento → Aprovação</div>
+        <div class="sub" id="t-orc-aprov-n">—</div>
+      </div>
+      <div class="stat ora">
+        <div class="v" id="t-reg-saida">—</div>
+        <div class="l">📦 Registro almoxarifado → Saída p/ terceirizada</div>
+        <div class="sub" id="t-reg-saida-n">—</div>
+      </div>
+      <div class="stat grn">
+        <div class="v" id="t-aprov-entrada">—</div>
+        <div class="l">✅ Aprovação → Entrada na fábrica</div>
+        <div class="sub" id="t-aprov-entrada-n">—</div>
+      </div>
+    </div>
+  </div>
+
   <div class="g2">
     <div class="card"><h2>⚡ Reincidências (&lt;7 dias após retorno)</h2><div id="t-reinc"></div></div>
     <div class="card"><h2>🗑 Balanças descartadas</h2><div id="t-desc-dash"></div></div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE FORA/VOLTARAM -->
+<div class="modal-ov" id="m-foravolta">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0" id="foravolta-titulo">Balanças</h3>
+      <button onclick="fecharM('m-foravolta')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="foravolta-corpo" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn-o btn-sm" onclick="fecharM('m-foravolta')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE MAU USO -->
+<div class="modal-ov" id="m-mauuso">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">🔻 Quebras por Mau Uso (queda)</h3>
+      <button onclick="fecharM('m-mauuso')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="mauuso-corpo" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn-o btn-sm" onclick="fecharM('m-mauuso')">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -283,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 const DB = "https://gestao-balancas-livup-default-rtdb.firebaseio.com";
 const DATA_VERSION = '5';
+const REGEX_MAU_USO = /queda|caiu|cair|caindo|derrub/i;
 
 // ── DADOS (mesma lógica do index.html) ──────────────────────────────────────
 const PLANILHA=[
@@ -443,7 +525,11 @@ let {bal:balancas,oc:ocorrencias}=initDados();
 const charts={};
 
 // Sync com Firebase (lê status atualizado pela manutenção e almoxarifado)
+// Mesmas regras do sincronizarFirebase() do index.html: se dataRetorno chega, o status
+// local vira ENTREGUE (senão o card "Aprovadas (aguardando retorno)" nunca desconta),
+// e dataRetirada também é puxada (senão os cards "Fora"/"Voltaram" ficam desalinhados).
 async function syncFirebase(){
+  const marcarEntregue = o => { if(o.status!=='REPROVADO' && o.status!=='DESCARTADO') o.status='ENTREGUE'; };
   try{
     const dados=await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
     const regs=dados?Object.entries(dados).map(([id,v])=>({fbId:id,...v})):[];
@@ -455,12 +541,16 @@ async function syncFirebase(){
     ocorrencias=ocorrencias.filter(o=>!o.fbId||fbIdsAtivos.has(o.fbId));
     if(ocorrencias.length!==antes) mudou=true;
 
-    // Passo 1: recupera fbIds perdidos e atualiza status vindos do Firebase
+    // Passo 1: recupera fbIds perdidos e atualiza dados vindos do Firebase. O campo
+    // "status" aqui nunca sobrescreve um registro já existente — o vocabulário rico
+    // (APROVADO/REPROVADO/ENTREGUE/DESCARTADO) é local, só o Firebase's SAIU/VOLTOU/etc
+    // é usado pra criar um registro novo do zero (mesma regra do sincronizarFirebase()
+    // do index.html, pra não regredir/confundir o status já conhecido).
     regs.forEach(reg=>{
       const jaExiste=ocorrencias.find(o=>o.fbId===reg.fbId);
       if(jaExiste){
-        if(reg.status&&reg.status!==jaExiste.status){jaExiste.status=reg.status;mudou=true;}
-        if(reg.dataRetorno&&!jaExiste.dataRetorno){jaExiste.dataRetorno=reg.dataRetorno;mudou=true;}
+        if(reg.dataRetorno&&!jaExiste.dataRetorno){ jaExiste.dataRetorno=reg.dataRetorno; marcarEntregue(jaExiste); mudou=true; }
+        if(reg.dataRetirada&&!jaExiste.dataRetirada){ jaExiste.dataRetirada=reg.dataRetirada; mudou=true; }
         if(reg.custo&&reg.custo!==jaExiste.custo){jaExiste.custo=reg.custo;mudou=true;}
         return;
       }
@@ -470,20 +560,24 @@ async function syncFirebase(){
       const semFbId=ocorrencias.find(o=>!o.fbId&&o.balancaId===bal.id&&o.dataQuebra===reg.dataQuebra);
       if(semFbId){
         semFbId.fbId=reg.fbId;
-        if(reg.status)semFbId.status=reg.status;
-        if(reg.dataRetorno)semFbId.dataRetorno=reg.dataRetorno;
+        if(reg.dataRetorno){ semFbId.dataRetorno=reg.dataRetorno; marcarEntregue(semFbId); }
+        else if(reg.status) semFbId.status=reg.status;
+        if(reg.dataRetirada&&!semFbId.dataRetirada) semFbId.dataRetirada=reg.dataRetirada;
         mudou=true; return;
       }
       // Nova ocorrência vinda do Firebase
-      ocorrencias.push({
+      const nova={
         id:uid(),fbId:reg.fbId,balancaId:bal.id,
         numeroOS:'',dataQuebra:reg.dataQuebra||'',turno:reg.turno||'',
         setor:reg.setor||'',problemaConstatado:reg.problema||'',
-        dataRetirada:null,dataAprovacao:null,previsaoChegada:null,
+        mauUso: !!reg.mauUso || REGEX_MAU_USO.test(reg.problema||''),
+        dataRetirada:reg.dataRetirada||null,dataAprovacao:null,previsaoChegada:null,
         status:reg.status||'AGUARDANDO APROVAÇÃO',aprovadoPor:'',dataRetorno:reg.dataRetorno||null,
         custo:reg.custo||0,descartado:false,quemDescartou:'',dataDescarte:null,
         capDiv:'',obs:'',valorOrcamento:0,qtdOrcamento:0,quemAcompanhouTeste:'',quemValidou:''
-      });
+      };
+      if(nova.dataRetorno) marcarEntregue(nova);
+      ocorrencias.push(nova);
       mudou=true;
     });
     setSyncOk(regs.length);
@@ -505,17 +599,139 @@ function nomeMes(ym){const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleS
 function getStatus(o){if(o.status==='DESCARTADO')return'DESCARTADO';if(!o.numeroOS)return'PENDENTE';return o.status||'AGUARDANDO APROVAÇÃO';}
 function statusBadge(s){
   if(!s||s==='PENDENTE')return`<span class="badge b-pend">Pendente</span>`;
+  if(s==='ENTREGUE')return`<span class="badge b-ok">Entregue</span>`;
   if(s==='APROVADO')return`<span class="badge b-ok">Aprovado</span>`;
   if(s==='REPROVADO')return`<span class="badge b-bad">Reprovado</span>`;
   if(s==='DESCARTADO')return`<span class="badge b-desc">Descartado</span>`;
   return`<span class="badge b-warn">Aguardando</span>`;
 }
+function dataValida(s){
+  if(!s) return false;
+  const ano = parseInt((s||'').slice(0,4));
+  return ano >= 2020 && ano <= 2035;
+}
 function detectReinc(balId,dataQ,ignId=null){
+  if(!dataValida(dataQ)) return null;
   const hist=ocorrencias.filter(o=>o.balancaId===balId&&o.id!==ignId&&o.dataRetorno).sort((a,b)=>a.dataRetorno.localeCompare(b.dataRetorno));
   for(const o of hist){if(o.dataRetorno<dataQ){const d=diffD(o.dataRetorno,dataQ);if(d<=7)return{oc:o,dias:d};}}
   return null;
 }
 function isReinc(o){return!!detectReinc(o.balancaId,o.dataQuebra,o.id);}
+
+// Fora da fábrica (na terceirizada): já saiu (tem OS) e ainda não teve entrada de retorno
+// registrada — mesma regra do index.html, inclusive garantia (voltou mas quebrou de novo).
+function estaForaDaFabrica(o){
+  if(getStatus(o)==='DESCARTADO') return false;
+  if(o.numeroOS && !o.dataRetorno) return true;
+  if(o.dataRetorno && o.dataGarantiaSaida && !o.dataGarantiaRetorno) return true;
+  return false;
+}
+
+// ── DASHBOARD DE TEMPOS — calcula média de dias entre duas datas de uma lista ──
+function renderTempoStat(lista, campoIni, campoFim, elId, elNId, filtroExtra){
+  const elV=document.getElementById(elId), elN=document.getElementById(elNId);
+  if(!elV) return;
+  let base=(lista||[]).filter(o=>o[campoIni]&&o[campoFim]&&dataValida(o[campoIni])&&dataValida(o[campoFim]));
+  if(filtroExtra) base=base.filter(filtroExtra);
+  const dias=base.map(o=>diffD(o[campoIni],o[campoFim])).filter(d=>d>=0);
+  if(!dias.length){ elV.textContent='—'; if(elN) elN.textContent='Sem dados suficientes'; return; }
+  const media=dias.reduce((s,d)=>s+d,0)/dias.length;
+  elV.textContent=media.toFixed(1).replace('.',',')+'d';
+  if(elN) elN.textContent=`Média de ${dias.length} registro(s) · min ${Math.min(...dias)}d · máx ${Math.max(...dias)}d`;
+}
+
+// Meses (dataQuebra) selecionados pra filtrar o dashboard. Vazio = todos os meses (padrão).
+let dashMesesSelecionados=[];
+function mesesDisponiveisDash(){
+  const set=new Set();
+  ocorrencias.forEach(o=>{ if(o.dataQuebra) set.add(o.dataQuebra.slice(0,7)); });
+  return Array.from(set).sort().reverse();
+}
+function toggleMesDash(mes){
+  if(mes===null){ dashMesesSelecionados=[]; }
+  else {
+    const i=dashMesesSelecionados.indexOf(mes);
+    if(i>=0) dashMesesSelecionados.splice(i,1); else dashMesesSelecionados.push(mes);
+  }
+  renderDashboard();
+}
+function renderFiltroMesesDash(){
+  const wrap=document.getElementById('dash-filtro-meses');
+  const resumo=document.getElementById('dash-filtro-resumo');
+  if(!wrap) return;
+  const meses=mesesDisponiveisDash();
+  const todosOn=dashMesesSelecionados.length===0;
+  const chip=(label,on,onclick)=>`<span onclick="${onclick}" style="cursor:pointer;user-select:none;padding:5px 12px;border-radius:20px;font-size:.78rem;font-weight:700;border:1.5px solid ${on?'var(--p)':'var(--bdr)'};background:${on?'var(--p)':'#fff'};color:${on?'#fff':'var(--txt)'}">${label}</span>`;
+  wrap.innerHTML = chip('Todos os meses',todosOn,'toggleMesDash(null)')
+    + meses.map(m=>chip(nomeMes(m),dashMesesSelecionados.includes(m),`toggleMesDash('${m}')`)).join('');
+  resumo.textContent = todosOn
+    ? 'Mostrando todo o período'
+    : `Mostrando ${dashMesesSelecionados.length} mês(es) selecionado(s)`;
+}
+
+// ── MODAIS DE DETALHE (view-only — sem ações de edição, diferente do index.html) ──
+function fecharM(id){document.getElementById(id).classList.remove('open');}
+function abrirForaVoltaram(tipo){
+  const titulo=document.getElementById('foravolta-titulo');
+  const corpo=document.getElementById('foravolta-corpo');
+  const hoje=new Date().toISOString().slice(0,10);
+  let lista, cols, linhas;
+  if(tipo==='fora'){
+    titulo.textContent='🚚 Balanças Fora da Fábrica (na terceirizada)';
+    lista=ocorrencias.filter(estaForaDaFabrica)
+      .sort((a,b)=>new Date(a.dataGarantiaSaida||a.dataRetirada||a.dataQuebra||0)-new Date(b.dataGarantiaSaida||b.dataRetirada||b.dataQuebra||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Situação','Dias fora'];
+    linhas=lista.map(o=>{
+      const emGarantia = o.dataRetorno && o.dataGarantiaSaida && !o.dataGarantiaRetorno;
+      const dataBase = emGarantia ? o.dataGarantiaSaida : o.dataRetirada;
+      const dias=dataBase?diffD(dataBase,hoje):'—';
+      const situacao = emGarantia ? `<span class="badge b-warn">🔧 Em garantia</span>` : statusBadge(getStatus(o));
+      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(dataBase)}</td><td>${situacao}</td><td>${dias}${dias!=='—'?'d':''}</td></tr>`;
+    });
+  } else {
+    titulo.textContent='📥 Balanças que Voltaram pra Fábrica';
+    lista=ocorrencias.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o))
+      .sort((a,b)=>new Date(b.dataGarantiaRetorno||b.dataRetorno||0)-new Date(a.dataGarantiaRetorno||a.dataRetorno||0));
+    cols=['TAG','Setor','N° O.S.','Saída','Retorno','Custo'];
+    linhas=lista.map(o=>{
+      const garantiaTag = o.dataGarantiaRetorno ? `<br><span style="font-size:.7rem;color:var(--muted)">🔧 voltou da garantia em ${fd(o.dataGarantiaRetorno)}</span>` : '';
+      return `<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${o.setor||'—'}</td><td>${o.numeroOS||'—'}</td><td>${fd(o.dataRetirada)}</td><td>${fd(o.dataRetorno)}${garantiaTag}</td><td>${o.custo?fmt(o.custo):'—'}</td></tr>`;
+    });
+  }
+  if(!lista.length){
+    corpo.innerHTML='<p class="empty">Nenhuma balança nessa condição no momento.</p>';
+  } else {
+    corpo.innerHTML=`<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> balança(s)</div>`;
+  }
+  document.getElementById('m-foravolta').classList.add('open');
+}
+function abrirMauUso(){
+  const lista = ocorrencias.filter(o=>o.mauUso).sort((a,b)=>new Date(b.dataQuebra||0)-new Date(a.dataQuebra||0));
+  const corpo = document.getElementById('mauuso-corpo');
+  if(!lista.length){
+    corpo.innerHTML = '<p class="empty">Nenhuma quebra classificada como mau uso até o momento.</p>';
+  } else {
+    corpo.innerHTML = `<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>
+      <th>TAG</th><th>Setor</th><th>Data quebra</th><th>Problema relatado</th><th>Status</th><th>Custo</th>
+    </tr></thead><tbody>${lista.map(o=>{
+      const b = balancas.find(x=>x.id===o.balancaId);
+      return `<tr>
+        <td><strong>${nomeBal(o.balancaId)}</strong></td>
+        <td>${o.setor||b?.setor||'—'}</td>
+        <td>${fd(o.dataQuebra)}</td>
+        <td>${o.problemaConstatado||'—'}</td>
+        <td>${statusBadge(getStatus(o))}</td>
+        <td>${o.custo?fmt(o.custo):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> quebra(s) por mau uso</div>`;
+  }
+  document.getElementById('m-mauuso').classList.add('open');
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+});
 
 // ── NAVEGAÇÃO ────────────────────────────────────────────────────────────────
 function goPage(id,btn){
@@ -528,34 +744,85 @@ function goPage(id,btn){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
+  renderFiltroMesesDash();
   const mes=mesAtual();
   const ocMes=ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(mes));
+  const custoMes=ocMes.reduce((s,o)=>s+(o.custo||0),0);
+
+  // ocBase: ocorrências restritas ao(s) mês(es) selecionado(s) no filtro (por dataQuebra).
+  // Sem seleção = todos os meses. Mesma lógica do index.html, pra ficar sincronizado.
+  const ocBase = dashMesesSelecionados.length
+    ? ocorrencias.filter(o=>o.dataQuebra && dashMesesSelecionados.includes(o.dataQuebra.slice(0,7)))
+    : ocorrencias;
+
   document.getElementById('s-bal').textContent=balancas.length;
-  document.getElementById('s-aprov').textContent=ocMes.filter(o=>o.status==='APROVADO').length;
-  document.getElementById('s-aguard').textContent=ocorrencias.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
-  document.getElementById('s-fora').textContent=ocorrencias.filter(o=>o.dataRetirada&&!o.dataRetorno).length;
-  document.getElementById('s-desc').textContent=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO').length;
+  document.getElementById('s-aprov').textContent=ocBase.filter(o=>o.status==='APROVADO').length;
+  document.getElementById('s-aguard').textContent=ocBase.filter(o=>getStatus(o)==='AGUARDANDO APROVAÇÃO'||getStatus(o)==='PENDENTE').length;
+  document.getElementById('s-reprov').textContent=ocBase.filter(o=>o.status==='REPROVADO').length;
+  document.getElementById('s-desc').textContent=ocBase.filter(o=>getStatus(o)==='DESCARTADO').length;
+
+  // Aguardando aprovação de orçamento — mesma fonte (Firebase /orcamentos) do index.html
+  fetch(`${DB}/orcamentos.json`).then(r=>r.json()).then(d=>{
+    const n=d?Object.values(d).filter(o=>o.status==='AGUARDANDO').length:0;
+    const el=document.getElementById('s-aguard-orc');
+    if(el) el.textContent=n;
+    const orcs=d?Object.values(d):[];
+    renderTempoStat(orcs,'dataOrcamento','dataAprovacao','t-orc-aprov','t-orc-aprov-n',o=>o.status==='APROVADO');
+  }).catch(()=>{});
+
+  // Mau uso (queda): quantidade total de quebras marcadas, e custo já aprovado dessas
+  const ocsMauUso=ocBase.filter(o=>o.mauUso);
+  document.getElementById('s-mauuso-qtd').textContent=ocsMauUso.length;
+  const custoMauUso=ocsMauUso.filter(o=>o.status==='APROVADO'||o.status==='ENTREGUE').reduce((s,o)=>s+(Number(o.custo)||0),0);
+  document.getElementById('s-mauuso-custo').textContent=fmt(custoMauUso);
+
+  // Fora da fábrica / Voltaram
+  document.getElementById('s-fora-qtd').textContent=ocBase.filter(estaForaDaFabrica).length;
+  document.getElementById('s-voltaram-qtd').textContent=ocBase.filter(o=>!!o.dataRetorno && !estaForaDaFabrica(o)).length;
+
+  // Barra do mês atual
+  const mesLabel=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  const qMesEl=document.getElementById('s-qmes-val');
+  const custoMesEl=document.getElementById('s-custo-mes-val');
+  const mesLabelEl=document.getElementById('s-mes-label');
+  if(qMesEl) qMesEl.textContent=ocMes.length;
+  if(custoMesEl) custoMesEl.textContent=fmt(custoMes);
+  if(mesLabelEl) mesLabelEl.textContent=mesLabel;
+
+  // alertas (reincidência / pendente)
+  const reincs=ocBase.filter(isReinc);
+  const alertEl=document.getElementById('alertas');
+  if(alertEl){
+    alertEl.innerHTML='';
+    if(reincs.length){alertEl.innerHTML+=`<div class="alert al-d">⚡ <strong>${reincs.length} reincidência(s)</strong> detectadas — balanças que quebraram em menos de 7 dias após retorno do conserto.</div>`;}
+    const pend=ocBase.filter(o=>getStatus(o)==='PENDENTE').length;
+    if(pend){alertEl.innerHTML+=`<div class="alert al-w">⏳ <strong>${pend} ocorrência(s) pendente(s)</strong> aguardam preenchimento pela Manutenção (sem N° O.S. ainda).</div>`;}
+  }
 
   const qBal={};balancas.forEach(b=>qBal[b.id]={tag:b.tag,n:0});
-  ocMes.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
+  ocBase.forEach(o=>{if(qBal[o.balancaId])qBal[o.balancaId].n++;});
   const dQ=Object.values(qBal).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,15);
   mkChart('cQ','bar',dQ.map(x=>x.tag),[{label:'Quebras',data:dQ.map(x=>x.n),backgroundColor:'#1a56db',borderRadius:5}]);
 
   const cBal={};balancas.forEach(b=>cBal[b.id]={tag:b.tag,c:0});
-  ocorrencias.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
+  ocBase.forEach(o=>{if(cBal[o.balancaId])cBal[o.balancaId].c+=(o.custo||0);});
   const dC=Object.values(cBal).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,15);
   mkChart('cC','bar',dC.map(x=>x.tag),[{label:'Custo',data:dC.map(x=>x.c),backgroundColor:'#057a55',borderRadius:5}],true);
 
   const m6=[];for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);m6.push(d.toISOString().slice(0,7));}
   mkChart('cH','line',m6.map(nomeMes),[{label:'Quebras',data:m6.map(m=>ocorrencias.filter(o=>o.dataQuebra&&o.dataQuebra.startsWith(m)).length),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.1)',fill:true,tension:.3,pointRadius:5}]);
 
-  const reincs=ocorrencias.filter(isReinc);
+  // Tempo médio — ciclo do reparo (o de Orçamento→Aprovação é calculado dentro do
+  // fetch de /orcamentos acima, pois usa campos da própria coleção de orçamentos)
+  renderTempoStat(ocorrencias,'dataQuebra','dataRetirada','t-reg-saida','t-reg-saida-n');
+  renderTempoStat(ocorrencias,'dataAprovacao','dataRetorno','t-aprov-entrada','t-aprov-entrada-n');
+
   const elR=document.getElementById('t-reinc');
   if(!reincs.length){elR.innerHTML='<p class="empty">Nenhuma reincidência.</p>';}
   else elR.innerHTML=`<table><thead><tr><th>TAG</th><th>Quebra</th><th>Retornou</th><th>Dias</th><th>OS</th></tr></thead><tbody>
   ${reincs.sort((a,b)=>b.dataQuebra.localeCompare(a.dataQuebra)).slice(0,15).map(o=>{const r=detectReinc(o.balancaId,o.dataQuebra,o.id);return`<tr><td><strong>${nomeBal(o.balancaId)}</strong></td><td>${fd(o.dataQuebra)}</td><td>${fd(r.oc.dataRetorno)}</td><td><span class="badge b-bad">${r.dias}d</span></td><td class="os-s">${o.numeroOS||'—'}</td></tr>`;}).join('')}</tbody></table>`;
 
-  const descs=ocorrencias.filter(o=>getStatus(o)==='DESCARTADO');
+  const descs=ocBase.filter(o=>getStatus(o)==='DESCARTADO');
   const elD=document.getElementById('t-desc-dash');
   if(!descs.length){elD.innerHTML='<p class="empty">Nenhuma descartada.</p>';}
   else elD.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px">${descs.map(o=>`<div class="disc-chip">🗑 ${nomeBal(o.balancaId)}${o.quemDescartou?' · '+o.quemDescartou:''}</div>`).join('')}</div>`;
