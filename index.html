@@ -671,6 +671,9 @@ document.addEventListener('DOMContentLoaded', function(){
         <!-- Chips ainda fora -->
         <div id="bloco-fora" style="display:none;margin-bottom:10px">
           <div style="font-size:.74rem;font-weight:700;color:var(--danger);margin-bottom:6px">⏳ Ainda na terceirizada:</div>
+          <input type="text" id="fora-busca-tag" placeholder="🔎 Buscar TAG (ex: AS-BL-141)"
+            oninput="renderManPend()" autocomplete="off"
+            style="width:100%;padding:6px 10px;margin-bottom:8px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.8rem;text-transform:uppercase">
           <div id="fora-filtro-meses" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div>
           <div id="chips-fora" style="display:flex;flex-wrap:wrap;gap:5px"></div>
         </div>
@@ -1997,9 +2000,11 @@ function renderManPend(){
   const aindaFora   = qtdForam - qtdVoltaram;
   const listaForaTodas = foramBase.filter(o=>!o.dataRetorno);
   renderFiltroMesesFora(listaForaTodas);
-  const listaFora = foraMesesSelecionados.length
+  let listaFora = foraMesesSelecionados.length
     ? listaForaTodas.filter(o=>o.dataQuebra && foraMesesSelecionados.includes(o.dataQuebra.slice(0,7)))
     : listaForaTodas;
+  const buscaTag = (document.getElementById('fora-busca-tag')?.value||'').trim().toUpperCase();
+  if(buscaTag) listaFora = listaFora.filter(o=>nomeBal(o.balancaId).includes(buscaTag));
 
   document.getElementById('mv-entradas').textContent = qtdForam;
   document.getElementById('mv-voltaram').textContent = qtdVoltaram;
@@ -2010,7 +2015,7 @@ function renderManPend(){
   if(listaForaTodas.length){
     blocoFora.style.display='block';
     document.getElementById('chips-fora').innerHTML = !listaFora.length
-      ? '<span style="font-size:.76rem;color:var(--muted)">Nenhuma balança fora no(s) mês(es) selecionado(s).</span>'
+      ? '<span style="font-size:.76rem;color:var(--muted)">Nenhuma balança fora com esse filtro.</span>'
       : listaFora.map(o=>{
       const atrasada = o.previsaoChegada && o.previsaoChegada < hoje;
       const cor = atrasada ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b' : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
