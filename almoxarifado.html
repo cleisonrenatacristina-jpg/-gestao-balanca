@@ -341,15 +341,25 @@ async function registrar(e){
   const btn = document.getElementById('btn-env');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
+  const dataQuebraForm = document.getElementById('a-quebra').value;
+
   // Trava de duplicidade: se essa balança já tem uma ocorrência em aberto (ainda não
   // voltou/foi resolvida), não deixa registrar entrada de novo — evita o clássico
-  // duplo-clique/reenvio criando duas entradas idênticas pra mesma quebra.
+  // duplo-clique/reenvio criando duas entradas idênticas pra mesma quebra. Também bloqueia
+  // registrar a MESMA balança na MESMA data de quebra outra vez, mesmo que a ocorrência
+  // anterior já tenha voltado — evita duplicidade por reenvio/engano em qualquer status.
   try {
     const ocR = await fetch(`${DB}/ocorrencias.json`).then(r=>r.json());
     const ocs = ocR ? Object.entries(ocR).map(([id,v])=>({id,...v})) : [];
     const aberta = ocs.find(o => o.tag === tag && o.status !== 'VOLTOU' && o.status !== 'DESCARTADO');
     if(aberta){
       showMsg(`❌ A balança <strong>${tag}</strong> já tem uma ocorrência em aberto (quebra de ${fd(aberta.dataQuebra)}, status ${aberta.status}). Confirme a chegada dela antes de registrar uma nova entrada.`,'err');
+      btn.disabled = false; btn.textContent = 'Registrar entrada';
+      return;
+    }
+    const mesmaData = ocs.find(o => o.tag === tag && o.dataQuebra === dataQuebraForm);
+    if(mesmaData){
+      showMsg(`❌ Já existe um registro de <strong>${tag}</strong> com essa mesma data de quebra (${fd(dataQuebraForm)}). Verifique se não é duplicidade.`,'err');
       btn.disabled = false; btn.textContent = 'Registrar entrada';
       return;
     }

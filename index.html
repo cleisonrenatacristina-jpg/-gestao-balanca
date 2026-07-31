@@ -671,6 +671,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <!-- Chips ainda fora -->
         <div id="bloco-fora" style="display:none;margin-bottom:10px">
           <div style="font-size:.74rem;font-weight:700;color:var(--danger);margin-bottom:6px">⏳ Ainda na terceirizada:</div>
+          <div id="fora-filtro-meses" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div>
           <div id="chips-fora" style="display:flex;flex-wrap:wrap;gap:5px"></div>
         </div>
         <!-- Chips aguardando -->
@@ -1961,6 +1962,28 @@ function toggleDescForm(){
 // form-man foi substituído pelas 5 etapas numeradas (step1Salvar...step5Salvar)
 // Listener removido — não há mais <form id="form-man"> no HTML
 
+// Meses (dataQuebra) selecionados pra filtrar o bloco "Ainda na terceirizada" — vazio = todos.
+let foraMesesSelecionados=[];
+function toggleMesFora(mes){
+  if(mes===null){ foraMesesSelecionados=[]; }
+  else {
+    const i=foraMesesSelecionados.indexOf(mes);
+    if(i>=0) foraMesesSelecionados.splice(i,1); else foraMesesSelecionados.push(mes);
+  }
+  renderManPend();
+}
+function renderFiltroMesesFora(candidatos){
+  const wrap=document.getElementById('fora-filtro-meses');
+  if(!wrap) return;
+  const set=new Set();
+  candidatos.forEach(o=>{ if(o.dataQuebra) set.add(o.dataQuebra.slice(0,7)); });
+  const meses=Array.from(set).sort().reverse();
+  const todosOn=foraMesesSelecionados.length===0;
+  const chip=(label,on,onclick)=>`<span onclick="${onclick}" style="cursor:pointer;user-select:none;padding:3px 10px;border-radius:16px;font-size:.7rem;font-weight:700;border:1.5px solid ${on?'var(--p)':'var(--bdr)'};background:${on?'var(--p)':'#fff'};color:${on?'#fff':'var(--txt)'}">${label}</span>`;
+  wrap.innerHTML = meses.length<=1 ? '' : (chip('Todos os meses',todosOn,'toggleMesFora(null)')
+    + meses.map(m=>chip(nomeMes(m),foraMesesSelecionados.includes(m),`toggleMesFora('${m}')`)).join(''));
+}
+
 function renderManPend(){
   const fMes  = document.getElementById('mf-mes').value;
   const fSt   = document.getElementById('mf-status').value;
@@ -1972,7 +1995,11 @@ function renderManPend(){
   const qtdForam    = foramBase.length;
   const qtdVoltaram = foramBase.filter(o=>o.dataRetorno).length;
   const aindaFora   = qtdForam - qtdVoltaram;
-  const listaFora   = foramBase.filter(o=>!o.dataRetorno);
+  const listaForaTodas = foramBase.filter(o=>!o.dataRetorno);
+  renderFiltroMesesFora(listaForaTodas);
+  const listaFora = foraMesesSelecionados.length
+    ? listaForaTodas.filter(o=>o.dataQuebra && foraMesesSelecionados.includes(o.dataQuebra.slice(0,7)))
+    : listaForaTodas;
 
   document.getElementById('mv-entradas').textContent = qtdForam;
   document.getElementById('mv-voltaram').textContent = qtdVoltaram;
@@ -1980,9 +2007,11 @@ function renderManPend(){
 
   // Chips: TAGs ainda na terceirizada → clique preenche Etapa 4 (Retorno)
   const blocoFora = document.getElementById('bloco-fora');
-  if(listaFora.length){
+  if(listaForaTodas.length){
     blocoFora.style.display='block';
-    document.getElementById('chips-fora').innerHTML = listaFora.map(o=>{
+    document.getElementById('chips-fora').innerHTML = !listaFora.length
+      ? '<span style="font-size:.76rem;color:var(--muted)">Nenhuma balança fora no(s) mês(es) selecionado(s).</span>'
+      : listaFora.map(o=>{
       const atrasada = o.previsaoChegada && o.previsaoChegada < hoje;
       const cor = atrasada ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b' : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
       const prev = o.previsaoChegada ? ` · prev: ${fd(o.previsaoChegada)}${atrasada?' ⚠️':''}` : '';
@@ -2802,6 +2831,11 @@ async function step1Salvar(){
     const aberta = ocsFB.find(o => o.tag === bal.tag && o.status !== 'VOLTOU' && o.status !== 'DESCARTADO');
     if(aberta){
       stepMsg('s1-msg',`❌ A balança ${bal.tag} já tem uma ocorrência em aberto (quebra de ${fd(aberta.dataQuebra)}, status ${aberta.status}). Só pode registrar de novo depois que ela voltar da terceirizada.`,'err');
+      return;
+    }
+    const mesmaData = ocsFB.find(o => o.tag === bal.tag && o.dataQuebra === dataQ);
+    if(mesmaData){
+      stepMsg('s1-msg',`❌ Já existe um registro de ${bal.tag} com essa mesma data de quebra (${fd(dataQ)}). Verifique se não é duplicidade.`,'err');
       return;
     }
   } catch(e){
@@ -3644,6 +3678,14 @@ function reconciliarSaidaComOrcamentos(orcs){
     const maisRecente = orcsTag[orcsTag.length-1];
     let oc = findOcAtiva(bal.id, o=>!o.dataRetorno && getStatus(o)!=='DESCARTADO');
     if(!oc){
+      // Não cria ocorrência fantasma se esse orçamento já corresponde a um evento desta TAG
+      // que já foi encerrado por outro caminho (dataQuebra <= data do orçamento <= retorno) —
+      // sem essa checagem, um orçamento antigo de uma balança que já voltou há muito tempo
+      // gerava uma ocorrência "SAIU" duplicada, presa pra sempre em "Ainda na terceirizada".
+      const dataOrc = maisRecente.dataOrcamento || '';
+      const jaCoberta = dataOrc && ocorrencias.some(o=>o.balancaId===bal.id && o.dataQuebra
+        && o.dataQuebra<=dataOrc && (!o.dataRetorno || o.dataRetorno>=dataOrc));
+      if(jaCoberta) return;
       oc = {
         id:uid(), balancaId:bal.id,
         numeroOS:'', dataQuebra:maisRecente.dataOrcamento||new Date().toISOString().slice(0,10),
