@@ -307,6 +307,20 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
     <div class="sync"><span></span>Atualizado em tempo real</div>
 
+    <!-- Filtro por data de aprovação/reprovação -->
+    <div class="no-print" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:3px">Aprovado/reprovado de</label>
+        <input type="date" id="f-data-aprov-ini" onchange="renderHist()" style="padding:6px 9px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.82rem">
+      </div>
+      <div>
+        <label style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:3px">até</label>
+        <input type="date" id="f-data-aprov-fim" onchange="renderHist()" style="padding:6px 9px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.82rem">
+      </div>
+      <button type="button" onclick="limparFiltroData()" style="background:transparent;border:1.5px solid var(--bdr);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer">Limpar</button>
+      <div id="filtro-data-resumo" style="font-size:.8rem;font-weight:700;color:var(--pd);margin-left:auto;align-self:center"></div>
+    </div>
+
     <!-- Filtros por serviço/peça -->
     <div id="filter-bar" class="filter-bar" style="display:none"></div>
 
@@ -952,27 +966,58 @@ function toggleFiltro(desc){
   renderHist();
 }
 
+function limparFiltroData(){
+  document.getElementById('f-data-aprov-ini').value = '';
+  document.getElementById('f-data-aprov-fim').value = '';
+  renderHist();
+}
+
 function renderHist(){
   const hist = document.getElementById('hist-orc');
   let lista = filtroAtivo
     ? _orcamentos.filter(o=>parseItens(o.itens).some(i=>i.desc===filtroAtivo))
     : _orcamentos;
 
+  // Filtro por data de aprovação/reprovação — só considera orçamentos já decididos
+  // (dataAprovacao preenchida) dentro do período; soma dos valores abaixo reflete
+  // só o que está sendo mostrado, não o total geral.
+  const dIni = document.getElementById('f-data-aprov-ini')?.value || '';
+  const dFim = document.getElementById('f-data-aprov-fim')?.value || '';
+  const filtroDataAtivo = !!(dIni || dFim);
+  if(filtroDataAtivo){
+    lista = lista.filter(o => o.dataAprovacao
+      && (!dIni || o.dataAprovacao >= dIni)
+      && (!dFim || o.dataAprovacao <= dFim));
+  }
+
+  const resumoEl = document.getElementById('filtro-data-resumo');
+  if(resumoEl){
+    if(filtroDataAtivo){
+      const soma = lista.reduce((s,o)=>s+(Number(o.valorTotal)||0),0);
+      resumoEl.textContent = `${lista.length} orçamento${lista.length===1?'':'s'} no período · ${fmt(soma)}`;
+    } else {
+      resumoEl.textContent = '';
+    }
+  }
+
   if(!lista.length){
-    hist.innerHTML = filtroAtivo
-      ? `<div class="empty">Nenhum orçamento com "${filtroAtivo}".</div>`
-      : '<div class="empty">Nenhum orçamento enviado ainda.</div>';
+    hist.innerHTML = filtroDataAtivo
+      ? '<div class="empty">Nenhum orçamento aprovado/reprovado nesse período.</div>'
+      : filtroAtivo
+        ? `<div class="empty">Nenhum orçamento com "${filtroAtivo}".</div>`
+        : '<div class="empty">Nenhum orçamento enviado ainda.</div>';
     return;
   }
 
   const pend = lista.filter(o=>o.status==='AGUARDANDO');
   const aprov= lista.filter(o=>o.status==='APROVADO');
   const repr = lista.filter(o=>o.status==='REPROVADO');
+  const somaLista = l => l.reduce((s,o)=>s+(Number(o.valorTotal)||0),0);
 
   let html = '';
-  if(pend.length){ html += `<div class="section-lbl sl-pend">⌛ Aguardando aprovação (${pend.length})</div>`+pend.map(renderCard).join(''); }
-  if(aprov.length){ html += `<div class="section-lbl sl-ok">✅ Aprovados (${aprov.length})</div>`+aprov.map(renderCard).join(''); }
-  if(repr.length){ html += `<div class="section-lbl sl-bad">❌ Reprovados (${repr.length})</div>`+repr.map(renderCard).join(''); }
+  if(pend.length){ html += `<div class="section-lbl sl-pend">⌛ Aguardando aprovação (${pend.length}) · ${fmt(somaLista(pend))}</div>`+pend.map(renderCard).join(''); }
+  if(aprov.length){ html += `<div class="section-lbl sl-ok">✅ Aprovados (${aprov.length}) · ${fmt(somaLista(aprov))}</div>`+aprov.map(renderCard).join(''); }
+  if(repr.length){ html += `<div class="section-lbl sl-bad">❌ Reprovados (${repr.length}) · ${fmt(somaLista(repr))}</div>`+repr.map(renderCard).join(''); }
   hist.innerHTML = html;
 }
 
