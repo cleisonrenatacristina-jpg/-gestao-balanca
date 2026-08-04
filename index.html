@@ -411,11 +411,11 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
   <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px" id="dash-stats">
     <div class="stat"><div class="v" id="s-bal">0</div><div class="l">Balanças cadastradas</div></div>
-    <div class="stat grn"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (aguardando retorno)</div></div>
-    <div class="stat ora"><div class="v" id="s-aguard">0</div><div class="l">⌛ Aguard. aprovação manutenção</div></div>
+    <div class="stat grn" style="cursor:pointer" onclick="abrirDetalheStatus('APROVADO')" title="Clique para ver quais balanças"><div class="v" id="s-aprov">0</div><div class="l">Aprovadas (aguardando retorno)</div></div>
+    <div class="stat ora" style="cursor:pointer" onclick="abrirDetalheStatus('AGUARDANDO')" title="Clique para ver quais balanças"><div class="v" id="s-aguard">0</div><div class="l">⌛ Aguard. aprovação manutenção</div></div>
     <div class="stat" style="border-color:#bae6fd;background:#f0f9ff"><div class="v" style="color:#0369a1" id="s-aguard-orc">0</div><div class="l" style="color:#0369a1">🔧 Aguard. aprovação orçamento</div></div>
-    <div class="stat red"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
-    <div class="stat pur"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
+    <div class="stat red" style="cursor:pointer" onclick="abrirDetalheStatus('REPROVADO')" title="Clique para ver quais balanças"><div class="v" id="s-reprov">0</div><div class="l">Reprovadas (total)</div></div>
+    <div class="stat pur" style="cursor:pointer" onclick="abrirDetalheStatus('DESCARTADO')" title="Clique para ver quais balanças"><div class="v" id="s-desc">0</div><div class="l">Descartadas (total)</div></div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px" id="dash-stats-forvolta">
     <div class="stat" style="border-color:#fdba74;background:#fff7ed;cursor:pointer" onclick="abrirForaVoltaram('fora')" title="Clique para ver quais balanças"><div class="v" style="color:#9a3412" id="s-fora-qtd">0</div><div class="l" style="color:#9a3412">🚚 Fora da Fábrica (na terceirizada)</div></div>
@@ -670,7 +670,8 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
         <!-- Chips ainda fora -->
         <div id="bloco-fora" style="display:none;margin-bottom:10px">
-          <div style="font-size:.74rem;font-weight:700;color:var(--danger);margin-bottom:6px">⏳ Ainda na terceirizada:</div>
+          <div style="font-size:.74rem;font-weight:700;color:var(--danger);margin-bottom:4px">⏳ Ainda na terceirizada:</div>
+          <div id="fora-resumo-status" style="font-size:.72rem;color:var(--muted);margin-bottom:6px"></div>
           <input type="text" id="fora-busca-tag" placeholder="🔎 Buscar TAG (ex: AS-BL-141)"
             oninput="renderManPend()" autocomplete="off"
             style="width:100%;padding:6px 10px;margin-bottom:8px;border:1.5px solid var(--bdr);border-radius:7px;font-size:.8rem;text-transform:uppercase">
@@ -966,6 +967,20 @@ document.addEventListener('DOMContentLoaded', function(){
     <div id="mauuso-corpo" style="max-height:65vh;overflow-y:auto"></div>
     <div class="modal-foot">
       <button class="btn btn-o" onclick="fecharM('m-mauuso')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE STATUS (cards Aprovadas/Aguardando/Reprovadas/Descartadas do dashboard) -->
+<div class="modal-ov" id="m-detalhestatus">
+  <div class="modal" style="max-width:760px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0" id="detalhestatus-titulo">Balanças</h3>
+      <button onclick="fecharM('m-detalhestatus')" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div id="detalhestatus-corpo" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn btn-o" onclick="fecharM('m-detalhestatus')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1622,6 +1637,10 @@ function renderTempoStat(lista, campoIni, campoFim, elId, elNId, filtroExtra){
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 // Meses (dataQuebra) selecionados pra filtrar o dashboard. Vazio = todos os meses (padrão).
 let dashMesesSelecionados=[];
+// Guarda o mesmo recorte (ocBase) usado pra calcular os cards do dashboard, pra que o
+// modal de detalhe mostre exatamente a mesma lista que gerou o número clicado — sem
+// isso não dava pra conferir se o card "bate com a realidade".
+let _dashOcBase=[];
 function mesesDisponiveisDash(){
   const set=new Set();
   ocorrencias.forEach(o=>{ if(o.dataQuebra) set.add(o.dataQuebra.slice(0,7)); });
@@ -1669,6 +1688,7 @@ function renderDashboard(){
   const ocBase = dashMesesSelecionados.length
     ? ocorrencias.filter(o=>o.dataQuebra && dashMesesSelecionados.includes(o.dataQuebra.slice(0,7)))
     : ocorrencias;
+  _dashOcBase = ocBase;
 
   // Cards: "Balanças cadastradas" é o total do cadastro, não filtra por mês. O resto segue ocBase.
   document.getElementById('s-bal').textContent=balancas.length;
@@ -2011,18 +2031,33 @@ function renderManPend(){
   document.getElementById('mv-fora').textContent     = aindaFora;
 
   // Chips: TAGs ainda na terceirizada → clique preenche Etapa 4 (Retorno)
+  // Discrimina por decisão (getStatus): balança já Aprovada (só falta voltar) é uma
+  // situação bem diferente de uma que ainda nem foi decidida (Aguardando aprovação) —
+  // antes tudo aparecia igual aqui, dando a impressão de que "aguardando aprovação"
+  // era maior do que realmente é.
   const blocoFora = document.getElementById('bloco-fora');
   if(listaForaTodas.length){
     blocoFora.style.display='block';
+    const nAprov  = listaFora.filter(o=>getStatus(o)==='APROVADO').length;
+    const nAguard = listaFora.filter(o=>{const s=getStatus(o); return s==='AGUARDANDO APROVAÇÃO'||s==='PENDENTE';}).length;
+    const nReprov = listaFora.filter(o=>getStatus(o)==='REPROVADO').length;
+    document.getElementById('fora-resumo-status').innerHTML = !listaFora.length ? '' :
+      `✅ ${nAprov} aprovada${nAprov===1?'':'s'} — aguardando retorno &nbsp;·&nbsp; ⌛ ${nAguard} aguardando aprovação`
+      + (nReprov ? ` &nbsp;·&nbsp; ❌ ${nReprov} reprovada${nReprov===1?'':'s'}` : '');
     document.getElementById('chips-fora').innerHTML = !listaFora.length
       ? '<span style="font-size:.76rem;color:var(--muted)">Nenhuma balança fora com esse filtro.</span>'
       : listaFora.map(o=>{
       const atrasada = o.previsaoChegada && o.previsaoChegada < hoje;
-      const cor = atrasada ? 'background:#fde8e8;border-color:#fca5a5;color:#991b1b' : 'background:#fef3c7;border-color:#fcd34d;color:#92400e';
-      const prev = o.previsaoChegada ? ` · prev: ${fd(o.previsaoChegada)}${atrasada?' ⚠️':''}` : '';
+      const st = getStatus(o);
+      let cor, statusTxt;
+      if(atrasada){ cor='background:#fde8e8;border-color:#fca5a5;color:#991b1b'; statusTxt='⚠️ Atrasada'; }
+      else if(st==='APROVADO'){ cor='background:#dcfce7;border-color:#86efac;color:#166534'; statusTxt='✅ Aprovada — aguardando retorno'; }
+      else if(st==='REPROVADO'){ cor='background:#f3e8ff;border-color:#d8b4fe;color:#6b21a8'; statusTxt='❌ Reprovada'; }
+      else { cor='background:#fef3c7;border-color:#fcd34d;color:#92400e'; statusTxt='⌛ Aguardando aprovação'; }
+      const prev = o.previsaoChegada ? ` · prev: ${fd(o.previsaoChegada)}` : '';
       return `<span onclick="preencherEtapa(4,'${o.id}')" title="Clique para registrar retorno (Etapa 4)"
         style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;${cor};border:1px solid;border-radius:20px;padding:4px 11px;font-size:.74rem;font-weight:600">
-        ⚖️ ${nomeBal(o.balancaId)}${prev} <span style="font-size:.65rem;opacity:.7">→ Etapa 4</span></span>`;
+        ⚖️ ${nomeBal(o.balancaId)} <span style="font-size:.68rem;font-weight:700">${statusTxt}</span>${prev}</span>`;
     }).join('');
   } else {
     blocoFora.style.display='none';
@@ -2738,6 +2773,39 @@ function salvarGarantia(){
   else { o.dataGarantiaRetorno=data; }
   salvar(); fecharM('m-garantia'); renderAll();
   abrirForaVoltaram(garantiaModo==='saida'?'fora':'voltaram');
+}
+
+// ── MODAL DETALHE STATUS (cards Aprovadas/Aguardando/Reprovadas/Descartadas) ────
+// Usa _dashOcBase (mesmo recorte de mês já aplicado nos cards) pra listar exatamente
+// as balanças que compõem o número clicado, permitindo conferir se "bate com a realidade".
+function abrirDetalheStatus(tipo){
+  const cfg = {
+    APROVADO:   {titulo:'✅ Aprovadas — aguardando retorno', filtro:o=>o.status==='APROVADO'},
+    AGUARDANDO: {titulo:'⌛ Aguardando aprovação da manutenção', filtro:o=>{const s=getStatus(o);return s==='AGUARDANDO APROVAÇÃO'||s==='PENDENTE';}},
+    REPROVADO:  {titulo:'❌ Reprovadas (total)', filtro:o=>o.status==='REPROVADO'},
+    DESCARTADO: {titulo:'🗑 Descartadas (total)', filtro:o=>getStatus(o)==='DESCARTADO'}
+  }[tipo];
+  if(!cfg) return;
+  document.getElementById('detalhestatus-titulo').textContent = cfg.titulo;
+  const lista = _dashOcBase.filter(cfg.filtro).sort((a,b)=>(b.dataQuebra||'').localeCompare(a.dataQuebra||''));
+  const corpo = document.getElementById('detalhestatus-corpo');
+  if(!lista.length){
+    corpo.innerHTML = '<div class="ia-loading" style="padding:30px">Nenhuma balança nessa condição no momento (com o filtro de mês atual).</div>';
+  } else {
+    corpo.innerHTML = `<div style="overflow-x:auto"><table style="min-width:640px"><thead><tr>
+      <th>TAG</th><th>Setor</th><th>Quebra</th><th>N° O.S.</th><th>Saída</th><th>Status</th><th>Custo</th>
+    </tr></thead><tbody>${lista.map(o=>`<tr>
+        <td><strong>${nomeBal(o.balancaId)}</strong></td>
+        <td>${o.setor||'—'}</td>
+        <td>${fd(o.dataQuebra)}</td>
+        <td class="os-s">${o.numeroOS||'—'}</td>
+        <td>${fd(o.dataRetirada)}</td>
+        <td>${statusBadge(getStatus(o))}</td>
+        <td>${o.custo?fmt(o.custo):'—'}</td>
+      </tr>`).join('')}</tbody></table></div>
+    <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">Total: <strong>${lista.length}</strong> balança(s)${dashMesesSelecionados.length?' (com o filtro de mês aplicado)':''}</div>`;
+  }
+  document.getElementById('m-detalhestatus').classList.add('open');
 }
 
 // ── MODAL DETALHE MAU USO ─────────────────────────────────────────────────────
